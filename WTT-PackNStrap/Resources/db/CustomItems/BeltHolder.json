@@ -1,0 +1,78 @@
+{
+    "6815465859b8c6ff13f94100": {
+        "itemTplToClone": "5648a7494bdc2d9d488b4583",
+        "parentId": "5448e54d4bdc2dcc718b4568",
+        "handbookParentId": "5b5f6fa186f77409407a7eb7",
+        "overrideProperties": {
+            "ExaminedByDefault": true,
+            "QuestItem": false,
+            "CanSellOnRagfair": false,
+            "CanRequireOnRagfair": false,
+            "Weight": 0.0,
+            "Width": 1,
+            "Height": 1,
+            "BackgroundColor": "default",
+            "ArmorClass": 0,
+            "Durability": 0,
+            "MaxDurability": 0,
+            "armorZone": [],
+            "armorClass": 0,
+            "ArmorMaterial": "Aramid",
+            "BluntThroughput": 1,
+            "speedPenaltyPercent": 0,
+            "mousePenalty": 0,
+            "weaponErgonomicPenalty": 0,
+            "DiscardLimit": 0,
+            "Slots": [
+                {
+                    "_id": "6815465859b8c6ff13f94101",
+                    "_name": "mod_belt",
+                    "_parent": "6815465859b8c6ff13f94100",
+                    "_props": {
+                        "filters": [
+                            {
+                                "Filter": [
+                                    "6815465859b8c6ff13f94026"
+                                ],
+                                "ExcludedFilter": [],
+                                "armorColliders": [],
+                                "armorPlateColliders": [],
+                                "locked": false,
+                                "bluntDamageReduceFromSoftArmor": false
+                            }
+                        ],
+                        "MaxStackCount": 0,
+                        "isSortingTable": false,
+                        "maxCount": 0,
+                        "maxWeight": 0,
+                        "minCount": 0
+                    },
+                    "_required": false,
+                    "_mergeSlotWithChildren": false,
+                    "_proto": "55d721144bdc2d89028b456f"
+                }
+            ]
+        },
+        "locales": {
+            "en": {
+                "name": "Belt Holder (internal)",
+                "shortName": "BeltHolder",
+                "description": "Internal hidden container for the PackNStrap belt slot. Lives in a hidden pocket grid; should never appear in any vanilla UI."
+            }
+        },
+        "addtoInventorySlots": [],
+        "addtoModSlots": false,
+        "modSlot": [],
+        "fleaPriceRoubles": 0,
+        "handbookPriceRoubles": 0,
+        "addtoBots": false,
+        "addtoItemBlacklist": true,
+        "addtoStaticLootContainers": false,
+        "staticLootContainers": [],
+        "addLooseLoot": false,
+        "addLooseLootProbability": 0,
+        "addtoHallOfFame": false,
+        "hallOfFameSlots": [],
+        "addtoTraders": false
+    }
+}

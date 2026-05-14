@@ -71,8 +71,12 @@ namespace BeltSlot.Helpers
             buildBeltSlot = buildPanel.transform.Find("Containers Panel/Containers Scrollview/Content/ArmBand Slot").gameObject;
             SlotView slotView = buildBeltSlot.GetComponent<SlotView>();
 
+            // rebind first; SlotView.Show inside RebindOrFallback resets
+            // the header TMP text to slot.ID.Localized (i.e. "MOD_BELT"),
+            // so we apply our "BELT" override AFTER it.
+            var rebound = RebindOrFallback(slotView);
             setBeltSlot_Settings(buildBeltSlot);
-            return slotView.Slot;
+            return rebound;
         }
 
         // Mappings of the equipment panel in the deploy screen
@@ -87,8 +91,9 @@ namespace BeltSlot.Helpers
             deployBeltSlot = deployPanel.transform.Find("Containers Panel/Containers Scrollview/Content/ArmBand Slot").gameObject;
             SlotView slotView = deployBeltSlot.GetComponent<SlotView>();
 
+            var rebound = RebindOrFallback(slotView);
             setBeltSlot_Settings(deployBeltSlot);
-            return slotView.Slot;
+            return rebound;
         }
 
         // Mappings of the insurance screen in the matchmaker
@@ -104,8 +109,9 @@ namespace BeltSlot.Helpers
             insuranceBelt = insuranceScreenContainer.transform.Find("ArmBand Slot").gameObject;
             SlotView slotView = insuranceBelt.GetComponent<SlotView>();
 
+            var rebound = RebindOrFallback(slotView);
             setBeltSlot_Settings(insuranceBelt);
-            return slotView.Slot;
+            return rebound;
         }
 
         // Mappings of the inventory screen
@@ -126,8 +132,9 @@ namespace BeltSlot.Helpers
             beltSlot = containerGameObject.transform.Find("ArmBand Slot").gameObject;
             SlotView slotView = beltSlot.GetComponent<SlotView>();
 
+            var rebound = RebindOrFallback(slotView);
             setBeltSlot_Settings(beltSlot);
-            return slotView.Slot;
+            return rebound;
         }
 
         // Mappings of complex loot container view in the inventory screen
@@ -148,8 +155,9 @@ namespace BeltSlot.Helpers
             lootBeltSlot = lootContainerGameObject.transform.Find("ArmBand Slot").gameObject;
             SlotView slotView = lootBeltSlot.GetComponent<SlotView>();
 
+            var rebound = RebindOrFallback(slotView);
             setBeltSlot_Settings(lootBeltSlot);
-            return slotView.Slot;
+            return rebound;
         }
 
         public Slot getScavLootTransferUI_Mappings()
@@ -169,8 +177,24 @@ namespace BeltSlot.Helpers
             scavBeltSlot = scavInventoryContainer.transform.Find("ArmBand Slot").gameObject;
             SlotView slotView = scavBeltSlot.GetComponent<SlotView>();
 
+            var rebound = RebindOrFallback(slotView);
             setBeltSlot_Settings(scavBeltSlot);
-            return slotView.Slot;
+            return rebound;
+        }
+
+        // every screen's mapping method follows the same shape: locate the
+        // cloned-armband SlotView GameObject and return its bound Slot.
+        // we hijack that return value to swap the bound slot from "the
+        // equipment's ArmBand slot" (legacy) to "the BeltHolder's mod_belt
+        // slot inside the equipment's hidden pockets grid" (new). if the
+        // holder isnt present (server cleanup race, mod version mismatch,
+        // bot without pockets), we fall back to whatever slot was already
+        // bound so the UI doesnt blank out.
+        private Slot RebindOrFallback(SlotView slotView)
+        {
+            if (slotView == null) return null;
+            var rebound = BeltHolderHelper.RebindToBeltHolder(slotView);
+            return rebound ?? slotView.Slot;
         }
         #endregion
 

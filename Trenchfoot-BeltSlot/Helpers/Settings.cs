@@ -19,7 +19,7 @@ namespace BeltSlot.Helpers
             BeltSlotLocation = Config.Bind(
                 BeltLocationSettings,
                 "Belt slot location",
-                BeltSlotLocationOption.BelowPockets,
+                BeltSlotLocationOption.AbovePockets,
                 "Adjust the belt slot location, requires restart."
             );
         }

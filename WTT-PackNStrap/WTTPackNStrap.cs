@@ -1,4 +1,5 @@
-﻿using System.Reflection;
+using System.Reflection;
+using HarmonyLib;
 using SPTarkov.DI.Annotations;
 using SPTarkov.Server.Core.DI;
 using SPTarkov.Server.Core.Models.Eft.Common.Tables;
@@ -12,6 +13,7 @@ using SPTarkov.Server.Core.Servers;
 using SPTarkov.Server.Core.Utils;
 using WTTPackNStrap.Models;
 using WTTPackNStrap.Patches;
+using WTTPackNStrap.Services;
 using Path = System.IO.Path;
 
 namespace WTTPackNStrap;
@@ -40,7 +42,9 @@ public class WTTPackNStrap(
     DatabaseService databaseService,
     JsonUtil jsonUtil,
     ModHelper modHelper,
-    ConfigServer configServer) : IOnLoad
+    ConfigServer configServer,
+    PocketsGridInjectorService pocketsGridInjector,
+    GameStartHolderInjectPatch gameStartHolderPatch) : IOnLoad
 {
     private Assembly _assembly;
     private Dictionary<MongoId, TemplateItem> _itemsDb;
@@ -55,10 +59,27 @@ public class WTTPackNStrap(
         CreateCustomItemsAndTemplates();
         ConfigureCustomItemsToTraders();
         AddToInventorySlots();
-        
+
         await wttCommon.CustomItemServiceExtended.CreateCustomItems(_assembly);
         wttCommon.CustomRigLayoutService.CreateRigLayouts(_assembly);
         await wttCommon.CustomLocaleService.CreateCustomLocales(_assembly);
+
+        // belts used to go in the vanilla ArmBand slot - WTTCommonLib happily
+        // added every belt id there via each belt JSON's addtoInventorySlots.
+        // for the holder-pattern refactor we want belts to ONLY live in the
+        // BeltHolder.mod_belt slot, so strip them back out after CommonLib
+        // is done. ArmBand still works as a normal armband slot.
+        RemoveBeltsFromArmbandSlot();
+
+        // inject the hidden 1x1 grid into every pockets template - must run
+        // AFTER custom items so the holder tpl is in the db for the grid
+        // filter's whitelist.
+        pocketsGridInjector.Inject();
+
+        // hook GameStart so every PMC profile has the holder seeded into
+        // its pockets hidden grid before the client downloads inventory.
+        var harmony = new Harmony("com.wtt.packnstrap.server");
+        gameStartHolderPatch.Apply(harmony);
 
         ApplyConfigSettings();
     }
@@ -81,9 +102,15 @@ public class WTTPackNStrap(
         {
             new IsItemKeptAfterDeathPatch().Enable();
             new HandleInsuredItemLostEventPatch().Enable();
-            foreach (var caseId in BeltIds.Items)
+            // discover belts by parent class rather than the hardcoded
+            // BeltIds list - same self-healing rationale as
+            // RemoveBeltsFromArmbandSlot. BeltIds had drifted to 22 of 46
+            // entries, so half the belts kept their (default-enabled)
+            // insurance even when the config asked us to disable it.
+            const string beltParent = "6815465859b8c6ff13f94026";
+            foreach (var (_, item) in _itemsDb)
             {
-                if (_itemsDb.TryGetValue(caseId, out var item))
+                if (item?.Parent == beltParent)
                 {
                     item.Properties?.InsuranceDisabled = true;
                 }
@@ -134,10 +161,47 @@ public class WTTPackNStrap(
             {
                 slot.Properties?.Filters?.First().Filter?.Add("68154651f849fb4e7d816738");
             }
-            if (slot.Name == "ArmBand")
+            // ArmBand no longer gets the belt parent - belts live in the
+            // BeltHolder.mod_belt slot inside the hidden pockets grid now.
+            // see RemoveBeltsFromArmbandSlot for the cleanup of per-belt ids
+            // that CustomItemServiceExtended writes via addtoInventorySlots.
+        }
+    }
+
+    // post-CreateCustomItems cleanup: WTTCommonLib obeys each belt JSON's
+    // "addtoInventorySlots": ["ArmBand"] and adds every belt tpl to the
+    // default inventory's ArmBand filter. we want the ArmBand slot back to
+    // a vanilla armband slot, so strip all belt tpls AND the belt parent
+    // from the filter here.
+    //
+    // discover belts by their Parent in _itemsDb rather than the hardcoded
+    // BeltIds list - the list drifts whenever a new belt JSON is added
+    // (it lagged real belts 22 vs 46 the last time we checked, leaving
+    // half of them equippable as armbands). filtering by parent class
+    // self-heals.
+    private void RemoveBeltsFromArmbandSlot()
+    {
+        var defaultInventory = _itemsDb["55d7217a4bdc2d86028b456d"];
+        var beltParent = new MongoId("6815465859b8c6ff13f94026");
+
+        // collect every item in the db whose parent is the CustomBelt class.
+        // ToString() compare so MongoId vs string parents both work.
+        var beltTpls = new HashSet<MongoId>();
+        foreach (var (id, item) in _itemsDb)
+        {
+            if (item?.Parent == beltParent.ToString())
             {
-                slot.Properties?.Filters?.First().Filter?.Add("6815465859b8c6ff13f94026");
+                beltTpls.Add(id);
             }
+        }
+
+        foreach (var slot in defaultInventory.Properties.Slots)
+        {
+            if (slot.Name != "ArmBand") continue;
+            var filter = slot.Properties?.Filters?.FirstOrDefault()?.Filter;
+            if (filter == null) continue;
+
+            filter.RemoveWhere(id => id == beltParent || beltTpls.Contains(id));
         }
     }
 
@@ -188,4 +252,3 @@ public class WTTPackNStrap(
 
     }
 }
-

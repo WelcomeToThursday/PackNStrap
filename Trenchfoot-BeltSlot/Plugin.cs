@@ -15,7 +15,7 @@ using UnityEngine.SceneManagement;
 
 namespace BeltSlot
 {
-    [BepInPlugin("com.trenchfoot.beltslot", "Trenchfoot-BeltSlot", "2.0.4")]
+    [BepInPlugin("com.trenchfoot.beltslot", "Trenchfoot-BeltSlot", "2.1.0")]
     [BepInDependency("com.SPT.core", "4.0.4")]
     [BepInDependency("com.wtt.packnstrap", BepInDependency.DependencyFlags.SoftDependency)]
     public class Plugin : BaseUnityPlugin
@@ -322,6 +322,24 @@ namespace BeltSlot
             new InventoryScreenPatch().Enable();
             new ItemViewPatch().Enable();
 
+            // belt-holder pattern: the BELT slot now reads from a hidden
+            // pocket-backed BeltHolder.mod_belt slot instead of cloning the
+            // ArmBand slot. these patches make the holder hierarchy
+            // invisible (HideHolderGrid) and tolerant of unsearched corpse
+            // states (the bypass patches). without them, picking up gear
+            // off a bot before searching its pockets would error out.
+            new HideHolderGridPatch().Enable();
+            new EquipItemWindowSlotIdPatch().Enable();
+            new BeltHolderCanModifyItemPatch().Enable();
+            new BeltHolderCanPlaceInPatch().Enable();
+            new BeltHolderIsSearchedPatch().Enable();
+            new BeltHolderExaminedPatch().Enable();
+            new BeltHolderSlotGatePatch().Enable();
+            new PlayerBodyMountBeltPatch().Enable();
+            // GClass-targeted; tolerate version drift (matches LegArmor).
+            try { new BeltHolderIsItemKnownPatch().Enable(); }
+            catch (System.Exception ex) { Log.LogWarning($"[Belt Slots] IsItemKnown patch failed to enable: {ex.Message}"); }
+
             // Enables the correct patch based on if PackNStrap is installed or not
             if (packNStrapInstalled)
             {
@@ -543,19 +561,27 @@ namespace BeltSlot
         }
         #endregion
 
-        // Refreshes the armband and belt slots
+        // Refreshes the belt slot's visual state.
+        //
+        // pre-refactor: the BELT slot was a clone of the ArmBand slot bound
+        // to equipment.GetSlot(ArmBand). only one of armband/belt could be
+        // worn at a time so this method toggled BOTH visuals - showing the
+        // belt look when a compound (belt) sat in the armband slot, and
+        // showing an armband look otherwise.
+        //
+        // post-refactor: the BELT slot is now bound to BeltHolder.mod_belt
+        // via UI_Mappings.RebindOrFallback, which is independent of the
+        // real ArmBand slot. so:
+        //   - the actual armband slot (in the Gear Panel) renders itself
+        //     and we never touch it (targetArm is left alone).
+        //   - the belt slot only ever contains belts (the holder filter
+        //     enforces it), so we always force it into "belt mode".
+        //
+        // targetArm stays in the signature so the call sites in Plugin.cs
+        // dont change shape; just unused now.
         private void RefreshBeltSlot(Slot _slot, GameObject targetArm, GameObject targetBelt)
         {
-            if (TestItemIsCompound(_slot))
-            {
-                 UiMappings.toggleArmBandSlotFull(iconToggle, targetArm);
-                 UiMappings.toggleBeltSlotFull(!iconToggle, targetBelt);
-            }
-            else
-            {
-                 UiMappings.toggleArmBandSlotFull(!iconToggle, targetArm);
-                 UiMappings.toggleBeltSlotFull(iconToggle, targetBelt);
-            }
+            UiMappings.toggleBeltSlotFull(!iconToggle, targetBelt);
         }
     }
 }
