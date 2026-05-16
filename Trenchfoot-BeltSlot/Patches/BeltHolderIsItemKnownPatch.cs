@@ -14,21 +14,11 @@ namespace BeltSlot.Patches
     //     in the visible vanilla grids but not for our internal slot.
     //   - the per-item "reveal" animation on pockets-search skips ours,
     //     which keeps the search sound from being louder than it should be.
-    //
-    // type lookup is by GClass name (GClass2237 in current SPT 4.0.13). if
-    // the EFT client updates and renumbers it, this patch needs its target
-    // adjusted - that's why Plugin.cs catches the Enable exception.
     public class BeltHolderIsItemKnownPatch : ModulePatch
     {
         protected override MethodBase GetTargetMethod()
         {
-            var t = AccessTools.TypeByName("GClass2237");
-            if (t == null)
-            {
-                Plugin.Instance?.Log?.LogWarning("[Belt Slots] GClass2237 not found; IsItemKnown patch skipped (EFT version drift?)");
-                return null;
-            }
-            return AccessTools.Method(t, "IsItemKnown", new[] { typeof(Item), typeof(ItemAddress) });
+            return AccessTools.Method(typeof(PlayerSearchControllerClass), nameof(PlayerSearchControllerClass.IsItemKnown), new[] { typeof(Item), typeof(ItemAddress) });
         }
 
         [PatchPostfix]

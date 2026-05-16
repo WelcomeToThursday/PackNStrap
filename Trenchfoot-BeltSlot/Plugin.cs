@@ -80,6 +80,10 @@ namespace BeltSlot
         // Test the ArmBand slot, if it has an item, return true, otherwise return false
         private bool TestSlotHasItem(Slot _slot)
         {
+            // null-guard added because ItemViewPatch fires every frame and
+            // can race ahead of SetLootArmbandSlotOnOpen on the corpse view
+            // open/close lifecycle - was spamming NREs and lagging the UI.
+            if (_slot == null) return false;
             if (inventoryEquipment != null)
             {
                 Slot slot = _slot;
@@ -109,6 +113,7 @@ namespace BeltSlot
         // Test the ArmBand slot, if it has a compound item, return true, otherwise return false
         private bool TestItemIsCompound(Slot _slot)
         {
+            if (_slot == null || _slot.ContainedItem == null) return false;
             if (inventoryEquipment != null)
             {
                 //Slot slot = inventoryEquipment.GetSlot(EquipmentSlot.ArmBand);
@@ -136,6 +141,7 @@ namespace BeltSlot
         // Test the item in the ArmBand slot, if it has changed, return true, otherwise return false
         private bool TestItemChanged(String? item, Slot _slot)
         {
+            if (_slot == null || _slot.ParentItem == null || _slot.ContainedItem == null) return false;
             string? itemTest = item;
             Slot slot = _slot;
             string owner1 = playerID; // Player ID
@@ -262,83 +268,81 @@ namespace BeltSlot
         #endregion
 
         #region Belt Settings
-        private static EquipmentSlot[] aboveEquipmentSlots = new[]
-        {
-            EquipmentSlot.TacticalVest,
-            EquipmentSlot.ArmBand,
-            EquipmentSlot.Pockets,
-            EquipmentSlot.Backpack,
-            EquipmentSlot.SecuredContainer,
-            EquipmentSlot.Dogtag
-        };
-
-        private static EquipmentSlot[] belowEquipmentSlots = new[]
-        {
-            EquipmentSlot.TacticalVest,
-            EquipmentSlot.Pockets,
-            EquipmentSlot.ArmBand,
-            EquipmentSlot.Backpack,
-            EquipmentSlot.SecuredContainer,
-            EquipmentSlot.Dogtag
-        };
-
+        // pre-refactor we injected ArmBand into ContainersPanel.equipmentSlot_0
+        // so vanilla cloned an extra SlotView for the belt. that approach was
+        // tightly coupled to "rebind the cloned SlotView's Slot" which broke
+        // the inventory render every way we tried it.
+        //
+        // current approach mirrors LegArmor: leave the vanilla equipment slot
+        // array alone, and inject a brand-new SlotView via ContainersPanelPatch2's
+        // postfix on ContainersPanel.Show. SetSiblingIndex puts it above or
+        // below pockets based on Settings.BeltSlotLocation, no static-field
+        // mutation needed.
         void SetEquipmentSlots()
         {
-            switch (Settings.BeltSlotLocation.Value)
-            {
-                case BeltSlotLocationOption.AbovePockets:
-                    // Set the equipment slots to the aboveEquipmentSlots array
-                    typeof(ContainersPanel)
-                        .GetField("equipmentSlot_0", BindingFlags.Static | BindingFlags.NonPublic)
-                        .SetValue(null, aboveEquipmentSlots);
-                    break;
-                case BeltSlotLocationOption.BelowPockets:
-                    // Set the equipment slots to the belowEquipmentSlots array
-                    typeof(ContainersPanel)
-                        .GetField("equipmentSlot_0", BindingFlags.Static | BindingFlags.NonPublic)
-                        .SetValue(null, belowEquipmentSlots);
-                    break;
-            }
+            // no-op now; preserved so existing callers don't break. layout is
+            // applied per-panel by BeltSlotInjector instead.
         }
         #endregion
 
         private void Awake()
         {
             packNStrapInstalled = Chainloader.PluginInfos.Keys.Contains("com.wtt.packnstrap");
-            Settings.Init(Config);
+            // when LegArmor is also loaded, its body-silhouette layout shift
+            // pushes everything in the corpse-loot containers panel down a
+            // few pixels - the belt's natural Y is different from the
+            // standalone case. detect at startup so Settings.Init can pick
+            // belt-aware defaults. user can still override via F12.
+            var legArmorInstalled = Chainloader.PluginInfos.ContainsKey("com.manimal.legarmor");
+            Settings.Init(Config, legArmorInstalled);
             Instance = this;
             Log = Logger;
             UiMappings = new UI_Mappings();
+            if (legArmorInstalled)
+                Log.LogInfo("[Belt Slots] LegArmor detected; using leg-armor-aware layout defaults");
 
             SetEquipmentSlots();
-            new ContainersPanelPatch().Enable();
-            new ContainersPanelPatch2().Enable();
-            new ComplexStashPanelPatch().Enable();
-            new ComplexStashPanelPatch2().Enable();
-            new MainMenuControllerClassPatch().Enable();
-            new ItemUiContextPatch().Enable();
-            new EquipmentBuildsScreenPatch().Enable();
-            new InventoryEquipmentPatch().Enable();
-            new InventoryScreenPatch().Enable();
-            new ItemViewPatch().Enable();
+            // legacy cloned-armband patches DISABLED: they all hooked
+            // various screen-open events to call SetXArmbandSlot* / Update*
+            // methods that walk to a "ArmBand Slot" GameObject under the
+            // containers content. that GameObject was created by adding
+            // ArmBand to ContainersPanel.equipmentSlot_0 - we no longer do
+            // that, so those Find()s return null and the chained
+            // .gameObject NREs every frame from ItemViewPatch. cascading
+            // exceptions broke corpse-view cleanup and stacked UI between
+            // bots.
+            //
+            // new BeltSlotInjectorPatch does all the work the legacy chain
+            // used to: postfix on ContainersPanel.Show clones a SlotView,
+            // binds to BeltHolder.mod_belt, positions per config.
+            //
+            // new ComplexStashPanelPatch().Enable();
+            // new ComplexStashPanelPatch2().Enable();
+            // new MainMenuControllerClassPatch().Enable();
+            // new ItemUiContextPatch().Enable();
+            // new EquipmentBuildsScreenPatch().Enable();
+            // new InventoryEquipmentPatch().Enable();
+            // new InventoryScreenPatch().Enable();
+            // new ItemViewPatch().Enable();
 
-            // belt-holder pattern: the BELT slot now reads from a hidden
-            // pocket-backed BeltHolder.mod_belt slot instead of cloning the
-            // ArmBand slot. these patches make the holder hierarchy
-            // invisible (HideHolderGrid) and tolerant of unsearched corpse
-            // states (the bypass patches). without them, picking up gear
-            // off a bot before searching its pockets would error out.
+            // belt-holder pattern: dedicated SlotView injected per panel,
+            // bound to BeltHolder.mod_belt. these patches make the holder
+            // hierarchy invisible (HideHolderGrid) and tolerant of unsearched
+            // corpse states (the bypass patches). without them, picking up
+            // gear off a bot before searching its pockets would error out.
             new HideHolderGridPatch().Enable();
             new EquipItemWindowSlotIdPatch().Enable();
+            new BeltSlotInjectorPatch().Enable();
             new BeltHolderCanModifyItemPatch().Enable();
             new BeltHolderCanPlaceInPatch().Enable();
             new BeltHolderIsSearchedPatch().Enable();
             new BeltHolderExaminedPatch().Enable();
             new BeltHolderSlotGatePatch().Enable();
-            new PlayerBodyMountBeltPatch().Enable();
-            // GClass-targeted; tolerate version drift (matches LegArmor).
-            try { new BeltHolderIsItemKnownPatch().Enable(); }
-            catch (System.Exception ex) { Log.LogWarning($"[Belt Slots] IsItemKnown patch failed to enable: {ex.Message}"); }
+            // PlayerBodyMountBeltPatch stays off - constructing a
+            // PlayerBody.EquipmentSlotClass causes a duplicate Tactical Rig
+            // panel via side effects we havent untangled.
+            // new PlayerBodyMountBeltPatch().Enable();
+            new BeltHolderIsItemKnownPatch().Enable();
 
             // Enables the correct patch based on if PackNStrap is installed or not
             if (packNStrapInstalled)

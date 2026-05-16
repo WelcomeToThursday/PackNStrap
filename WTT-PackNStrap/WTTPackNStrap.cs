@@ -44,7 +44,8 @@ public class WTTPackNStrap(
     ModHelper modHelper,
     ConfigServer configServer,
     PocketsGridInjectorService pocketsGridInjector,
-    GameStartHolderInjectPatch gameStartHolderPatch) : IOnLoad
+    GameStartHolderInjectPatch gameStartHolderPatch,
+    BotGenerateBeltHolderPatch botBeltHolderPatch) : IOnLoad
 {
     private Assembly _assembly;
     private Dictionary<MongoId, TemplateItem> _itemsDb;
@@ -78,8 +79,12 @@ public class WTTPackNStrap(
 
         // hook GameStart so every PMC profile has the holder seeded into
         // its pockets hidden grid before the client downloads inventory.
+        // also hook BotGenerator.GenerateBot so every spawned bot gets an
+        // empty holder in their pockets - lets the corpse-loot view show
+        // a BELT slot (otherwise BeltSlotInjector finds no holder and skips).
         var harmony = new Harmony("com.wtt.packnstrap.server");
         gameStartHolderPatch.Apply(harmony);
+        botBeltHolderPatch.Apply(harmony);
 
         ApplyConfigSettings();
     }

@@ -74,6 +74,9 @@
         <Reference Include="UnityEngine.CoreModule">
             <HintPath>..\..\..\EscapeFromTarkov_Data\Managed\UnityEngine.CoreModule.dll</HintPath>
         </Reference>
+        <Reference Include="UnityEngine.UI">
+            <HintPath>..\..\..\EscapeFromTarkov_Data\Managed\UnityEngine.UI.dll</HintPath>
+        </Reference>
         <Reference Include="WTT-PackNStrap">
           <HintPath>..\Build\BepInEx\plugins\WTT-PackNStrap\WTT-PackNStrap.dll</HintPath>
         </Reference>
