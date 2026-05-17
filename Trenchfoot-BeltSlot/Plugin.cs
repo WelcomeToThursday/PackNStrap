@@ -288,18 +288,16 @@ namespace BeltSlot
         private void Awake()
         {
             packNStrapInstalled = Chainloader.PluginInfos.Keys.Contains("com.wtt.packnstrap");
-            // when LegArmor is also loaded, its body-silhouette layout shift
-            // pushes everything in the corpse-loot containers panel down a
-            // few pixels - the belt's natural Y is different from the
-            // standalone case. detect at startup so Settings.Init can pick
-            // belt-aware defaults. user can still override via F12.
+            // pick hardcoded layout/behavior values based on whether LegArmor
+            // is also loaded. no BepInEx bindings anymore (used to be
+            // F12-tunable; values are locked in).
             var legArmorInstalled = Chainloader.PluginInfos.ContainsKey("com.manimal.legarmor");
             Settings.Init(Config, legArmorInstalled);
             Instance = this;
             Log = Logger;
             UiMappings = new UI_Mappings();
             if (legArmorInstalled)
-                Log.LogInfo("[Belt Slots] LegArmor detected; using leg-armor-aware layout defaults");
+                Log.LogInfo("[Belt Slots] LegArmor detected; using leg-armor-aware layout values");
 
             SetEquipmentSlots();
             // legacy cloned-armband patches DISABLED: they all hooked

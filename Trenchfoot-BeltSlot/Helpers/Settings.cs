@@ -1,4 +1,4 @@
-﻿using BepInEx.Configuration;
+using BepInEx.Configuration;
 
 namespace BeltSlot.Helpers
 {
@@ -8,39 +8,35 @@ namespace BeltSlot.Helpers
         BelowPockets
     }
 
-    // BepInEx config for the belt slot. lives under one class so we can bind
-    // everything from Plugin.Awake in one call. layout entries mirror
-    // LegArmor's pattern: a Spacer Height (positive value = pushes the slot
-    // further down, used to clear room between the belt and an adjacent
-    // slot) and a Slot Offset Y (fine-tune the slot's anchoredPosition Y
-    // via a per-frame watchdog so VLG re-runs don't erase it).
+    // hardcoded layout values for the belt slot. previously these were
+    // BepInEx ConfigEntry<T>s exposed in F12 ConfigurationManager; we
+    // tuned via the sliders, locked in the numbers, then converted to
+    // plain static fields so users don't accidentally drift the layout
+    // and we don't bother writing a cfg file just for read-once values.
     //
-    // both layout entries only affect the CORPSE LOOT view. the player's own
-    // inventory uses the simpler AbovePockets/BelowPockets SetSiblingIndex
-    // placement and doesn't need fine-tuning. ranges + defaults copied from
-    // LegArmor's equivalents so the F12 sliders feel familiar.
+    // BeltSlotLocation (AbovePockets/BelowPockets) is the one exception -
+    // it's a genuine user preference, not a layout tuning value, so it
+    // stays as a BepInEx binding so users can toggle position via F12.
     //
-    // when LegArmor is also installed, its body-silhouette shift cascades
-    // into the containers panel and the belt's natural Y changes - so
-    // Init() takes an isLegArmorInstalled flag and picks a different
-    // default set. user can still override either set via F12.
+    // detection (Trenchfoot-BeltSlot + Manimal-LegArmor installed together)
+    // still picks between two value sets: Solo for standalone and
+    // WithLegArmor when LegArmor is also present (LegArmor's body-silhouette
+    // shift cascades into the containers panel layout).
     internal class Settings
     {
-        private const string BeltLocationSettings = "A. Belt Location";
-        private const string CorpseLayoutSettings = "B. Corpse View Layout";
+        // user-facing: F12-tunable position preference. kept as a binding
+        // because the right choice depends on the player's layout taste,
+        // not on what makes the panel look right structurally.
+        public static ConfigEntry<BeltSlotLocationOption> BeltSlotLocation { get; private set; }
 
-        public static ConfigEntry<BeltSlotLocationOption> BeltSlotLocation { get; set; }
-        public static ConfigEntry<bool> InjectBeltSpacer { get; set; }
-        public static ConfigEntry<float> BeltSpacerHeight { get; set; }
-        public static ConfigEntry<float> BeltSlotOffsetY { get; set; }
-        public static ConfigEntry<float> PocketsSlotOffsetY { get; set; }
+        // hardcoded layout values - set by Init() at startup. patches read
+        // these directly. these were ConfigEntry<T>.Value reads before;
+        // now plain values with no .Value indirection.
+        public static bool InjectBeltSpacer;
+        public static float BeltSpacerHeight;
+        public static float BeltSlotOffsetY;
+        public static float PocketsSlotOffsetY;
 
-        // tuned defaults. standalone Belt doesn't need any layout tweaks -
-        // vanilla containers panel positions the injected belt slot fine
-        // on its own. so Solo turns the spacer off entirely and zeros the
-        // offsets. WithLegArmor is the only case that needs non-zero
-        // values, since LegArmor's body-silhouette shift cascades into the
-        // containers panel layout.
         private struct Defaults
         {
             public bool InjectSpacer;
@@ -49,6 +45,8 @@ namespace BeltSlot.Helpers
             public float PocketsOffsetY;
         }
 
+        // standalone Belt - vanilla containers panel positions the injected
+        // belt slot fine on its own, so spacer off and all offsets zero.
         private static readonly Defaults Solo = new Defaults
         {
             InjectSpacer = false,
@@ -57,13 +55,11 @@ namespace BeltSlot.Helpers
             PocketsOffsetY = 0f,
         };
 
-        // defaults when LegArmor is also installed. tuned via F12 with
-        // both mods active. PocketsOffsetY = 60 matches the value LegArmor
-        // used to apply via its own WithBeltSlot.PocketsSlot - we've moved
-        // pockets ownership to Belt here, and LegArmor's WithBeltSlot
-        // PocketsSlot was zeroed out to avoid stacking. spacer left on so
-        // BeltSpacerHeight remains tunable; height defaults to 0 so it
-        // contributes nothing until raised.
+        // Belt + LegArmor. LegArmor pushes the containers panel down a bit
+        // via its body-silhouette shift, so the belt needs a small Y offset
+        // and pockets needs +60 (Belt mod owns the pockets offset in this
+        // case, see LegArmorConfig.WithBeltSlot.PocketsSlot which was
+        // zeroed out to hand ownership over to Belt).
         private static readonly Defaults WithLegArmor = new Defaults
         {
             InjectSpacer = true,
@@ -75,47 +71,17 @@ namespace BeltSlot.Helpers
         public static void Init(ConfigFile Config, bool isLegArmorInstalled = false)
         {
             BeltSlotLocation = Config.Bind(
-                BeltLocationSettings,
+                "A. Belt Location",
                 "Belt slot location",
                 BeltSlotLocationOption.AbovePockets,
-                "Adjust the belt slot location, requires restart."
+                "Place the belt slot above or below pockets in the containers panel. Requires restart."
             );
 
             var d = isLegArmorInstalled ? WithLegArmor : Solo;
-
-            InjectBeltSpacer = Config.Bind(
-                CorpseLayoutSettings,
-                "Inject Belt Spacer",
-                d.InjectSpacer,
-                "When enabled, a spacer GameObject is injected before the Belt Slot in the corpse loot layout flow (height controlled by 'Belt Spacer Height'). Disable to skip spacer injection entirely and test what the layout looks like with no spacer at all - existing spacer is destroyed on the next panel Show."
-            );
-
-            BeltSpacerHeight = Config.Bind(
-                CorpseLayoutSettings,
-                "Belt Spacer Height",
-                d.SpacerHeight,
-                new ConfigDescription(
-                    "Height of the spacer placed before the Belt Slot in the corpse loot layout flow. Positive = pushes the belt (and everything below it) further down. Only applies when 'Inject Belt Spacer' is enabled.",
-                    new AcceptableValueRange<float>(0f, 600f))
-            );
-
-            BeltSlotOffsetY = Config.Bind(
-                CorpseLayoutSettings,
-                "Belt Slot Offset Y",
-                d.SlotOffsetY,
-                new ConfigDescription(
-                    "Fine-tune offset applied to the Belt Slot itself on top of the spacer. Positive = push slot down further, negative = pull slot up. VLG re-applies natural Y each frame so we re-apply this delta after.",
-                    new AcceptableValueRange<float>(-200f, 200f))
-            );
-
-            PocketsSlotOffsetY = Config.Bind(
-                CorpseLayoutSettings,
-                "Pockets Slot Offset Y",
-                d.PocketsOffsetY,
-                new ConfigDescription(
-                    "Fine-tune offset applied to the Pockets Slot in the corpse loot view (on top of VLG's natural Y). Positive = down, negative = up. Belt mod owns this offset across both standalone and LegArmor-installed scenarios.",
-                    new AcceptableValueRange<float>(-200f, 200f))
-            );
+            InjectBeltSpacer = d.InjectSpacer;
+            BeltSpacerHeight = d.SpacerHeight;
+            BeltSlotOffsetY = d.SlotOffsetY;
+            PocketsSlotOffsetY = d.PocketsOffsetY;
         }
     }
 }

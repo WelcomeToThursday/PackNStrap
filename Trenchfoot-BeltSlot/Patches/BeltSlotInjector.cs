@@ -175,9 +175,9 @@ namespace BeltSlot.Patches
             // the layout with vs without a spacer GameObject at all). if a
             // spacer exists from a previous Show, destroy it so toggling
             // off takes effect immediately.
-            if (Settings.InjectBeltSpacer?.Value ?? true)
+            if (Settings.InjectBeltSpacer)
             {
-                EnsureSpacerBefore(beltRt, Mathf.Max(0f, Settings.BeltSpacerHeight?.Value ?? 0f));
+                EnsureSpacerBefore(beltRt, Mathf.Max(0f, Settings.BeltSpacerHeight));
             }
             else
             {
@@ -188,7 +188,7 @@ namespace BeltSlot.Patches
             // idempotent: GetComponent reuses the existing one if present.
             var offsetter = beltRt.GetComponent<BeltSlotOffsetter>();
             if (offsetter == null) offsetter = beltRt.gameObject.AddComponent<BeltSlotOffsetter>();
-            offsetter.OffsetFn = () => Settings.BeltSlotOffsetY?.Value ?? 0f;
+            offsetter.OffsetFn = () => Settings.BeltSlotOffsetY;
         }
 
         // attach the offsetter watchdog to the Pockets SlotView in corpse
@@ -209,7 +209,7 @@ namespace BeltSlot.Patches
 
                 var offsetter = rt.GetComponent<BeltSlotOffsetter>();
                 if (offsetter == null) offsetter = rt.gameObject.AddComponent<BeltSlotOffsetter>();
-                offsetter.OffsetFn = () => Settings.PocketsSlotOffsetY?.Value ?? 0f;
+                offsetter.OffsetFn = () => Settings.PocketsSlotOffsetY;
                 return;
             }
         }
