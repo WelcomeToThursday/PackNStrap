@@ -341,6 +341,33 @@ namespace BeltSlot
             // panel via side effects we havent untangled.
             // new PlayerBodyMountBeltPatch().Enable();
             new BeltHolderIsItemKnownPatch().Enable();
+            // make items in the belt reachable for reload-style flows
+            // (magazines, loose ammo, throwables). single shared Harmony
+            // instance because ModulePatch's per-instance Harmony made the
+            // three closed-generic patches stomp on each other - only the
+            // last-registered patch's postfix actually fired in-game.
+            BeltReloadPatches.Apply();
+            // ammo (shell-by-shell) and throwables (G-key) can't use the
+            // same closed-generic postfix trick - HarmonyX only fires the
+            // last-registered patch on closed generics of the same open
+            // method. instead we patch the specific NON-generic caller
+            // methods via IL transpilers, injecting a helper call right
+            // after they call GetReachableItemsOfTypeNonAlloc<T>. each
+            // target gets its own unique patch target so there's no
+            // collision with the magazine patch above.
+            BeltCallSiteTranspilers.Apply();
+            // append the belt's grids to the priority list for unloaded
+            // items so swapped-out mags can land back in the belt instead
+            // of being dropped. complements WTT-PackNStrapClient's own
+            // prefix on the same method which only knew about the legacy
+            // ArmBand-slot belt path.
+            new BeltUnloadDestinationPatch().Enable();
+            // belt items (meds, food, grenades, knives, weapons, etc) can
+            // be bound to quick-use hotkeys (1-0) just like pocket/rig
+            // items. relaxes only the bind-time spatial gate; the bind
+            // type filter (no mags/ammo) and vital-parts/examined checks
+            // still apply.
+            new BeltBindablePlacePatch().Enable();
 
             // Enables the correct patch based on if PackNStrap is installed or not
             if (packNStrapInstalled)
