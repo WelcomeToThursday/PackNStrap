@@ -309,16 +309,18 @@ namespace BeltSlot
             // untangled. keep the patch around in case we ever fix that.
             // new PlayerBodyMountBeltPatch().Enable();
 
-            // reload-from-belt: mags via closed-generic postfix, ammo +
-            // throwables via caller-method transpilers (HarmonyX misfires
-            // generic-method postfixes across closed instantiations - see
-            // BeltReloadPatches/BeltCallSiteTranspilers).
-            BeltReloadPatches.Apply();
+            // reload-from-belt: mags, ammo, and throwables all go through
+            // caller-method transpilers (the closed-generic postfix
+            // approach corrupts HarmonyX dispatch across other closed
+            // instantiations of the open method - see BeltCallSiteTranspilers).
             BeltCallSiteTranspilers.Apply();
 
             // unload destination + quick-use binding.
             new BeltUnloadDestinationPatch().Enable();
             new BeltBindablePlacePatch().Enable();
+
+            // workaround for the belt-source-move invisible-icon bug.
+            new BeltMoveRefreshPatch().Enable();
 
             // pick the right PackNStrap-aware variant of the
             // GetPrioritizedContainers patch.
