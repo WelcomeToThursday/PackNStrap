@@ -71,9 +71,9 @@ namespace BeltSlot.Helpers
             buildBeltSlot = buildPanel.transform.Find("Containers Panel/Containers Scrollview/Content/ArmBand Slot").gameObject;
             SlotView slotView = buildBeltSlot.GetComponent<SlotView>();
 
-            // rebind first; SlotView.Show inside RebindOrFallback resets
-            // the header TMP text to slot.ID.Localized (i.e. "MOD_BELT"),
-            // so we apply our "BELT" override AFTER it.
+            // apply the "BELT" header override AFTER reading the slot - the
+            // override mutates the TMP text that SlotView.Show sets back to
+            // slot.ID.Localized.
             var rebound = SlotOrNull(slotView);
             setBeltSlot_Settings(buildBeltSlot);
             return rebound;
@@ -182,12 +182,9 @@ namespace BeltSlot.Helpers
             return rebound;
         }
 
-        // rebind from the equipment's ArmBand slot to the BeltHolder's
-        // mod_belt slot now happens earlier in the flow via SlotViewBeltRebindPatch -
-        // it prefixes SlotView.Show and swaps the slot arg on cloned-armband
-        // SlotViews (identified by BeltCloneMarker) before the original
-        // method binds it. so by the time we read slotView.Slot here, it's
-        // already the belt holder slot.
+        // BeltSlotInjectorPatch binds the SlotView to mod_belt before any
+        // of these mappings run, so by the time we read slotView.Slot here
+        // it's already the belt holder slot.
         private Slot SlotOrNull(SlotView slotView) => slotView?.Slot;
         #endregion
 
@@ -206,65 +203,42 @@ namespace BeltSlot.Helpers
         }
 
         #region Inventory Settings Methods
-        // Set the settings of the belt slot, such as its position, name, and visibility
+        // override the slot header text to "BELT".
         public void setBeltSlot_Settings(GameObject targetBelt)
         {
-            if(Plugin.Instance.enableLogging)
-            {
+            if (Plugin.Instance.enableLogging)
                 Plugin.Instance.Log.LogInfo($"[Belt Slots] setBeltSlot_Settings called for {targetBelt.name}");
-            }
+            if (targetBelt == null) return;
 
-            if (targetBelt != null)
-            {
-                GameObject _headerPanel = targetBelt.transform.GetChild(0).gameObject; // Header panel of the belt slot
-                GameObject _slotPanel = targetBelt.transform.GetChild(1).gameObject; // Slot panel of the belt slot
-                GameObject _slotViewHeader = _headerPanel.transform.GetChild(1).gameObject; // Slot view header of the belt slot
-                GameObject _slotName = _slotViewHeader.transform.GetChild(2).gameObject; // Slot name of the belt slot
-
-                _slotName.GetComponent<TextMeshProUGUI>().text = "BELT"; // Set the slot name to "BELT"
-            }
-            else
-            {
-                return;
-            }
+            var headerPanel = targetBelt.transform.GetChild(0);
+            var slotViewHeader = headerPanel.GetChild(1);
+            var slotName = slotViewHeader.GetChild(2);
+            slotName.GetComponent<TextMeshProUGUI>().text = "BELT";
         }
 
+        // swaps the empty/full visual states on the belt SlotView. child
+        // indices match vanilla SlotView prefab layout.
         public void toggleBeltSlotFull(bool full, GameObject target)
         {
-            GameObject _slotPanel = target.transform.GetChild(1).gameObject; // Slot panel of the belt slot
-            if(_slotPanel.transform.childCount >5)
-            {
-                GameObject _backImage = _slotPanel.transform.GetChild(0).gameObject; // Back image of the belt slot
-                GameObject _backGround = _slotPanel.transform.GetChild(1).gameObject; // Background of the belt slot
-                GameObject _emptyBorder = _slotPanel.transform.GetChild(2).gameObject; // Empty border of the belt slot
-                GameObject _fullBorder = _slotPanel.transform.GetChild(3).gameObject; // Full border of the belt slot
-                GameObject _slotLayout = _slotPanel.transform.GetChild(4).gameObject; // Slot layout of the belt slot
-                    
-                _backImage.SetActive(full); // Show the back image
-                _backGround.SetActive(full); // Show the background
-                _emptyBorder.SetActive(full); // Show the empty border
-                _fullBorder.SetActive(!full); // Hide the full border
-                _slotLayout.SetActive(!full); // Hide the slot layout
-            }    
+            var slotPanel = target.transform.GetChild(1).gameObject;
+            if (slotPanel.transform.childCount <= 5) return;
+
+            slotPanel.transform.GetChild(0).gameObject.SetActive(full);   // back image
+            slotPanel.transform.GetChild(1).gameObject.SetActive(full);   // background
+            slotPanel.transform.GetChild(2).gameObject.SetActive(full);   // empty border
+            slotPanel.transform.GetChild(3).gameObject.SetActive(!full);  // full border
+            slotPanel.transform.GetChild(4).gameObject.SetActive(!full);  // slot layout
         }
 
         public void toggleArmBandSlotFull(bool full, GameObject target)
         {
-            GameObject _slotPanel = target.transform.GetChild(1).gameObject; // Slot panel of the armband slot
-            if (target.transform.childCount > 8)
-            {
-                GameObject _backImage = target.transform.GetChild(4).gameObject; // Back image of the armband slot
-                GameObject _backGround = target.transform.GetChild(5).gameObject; // Background of the armband slot
-                GameObject _emptyBorder = target.transform.GetChild(6).gameObject; // Empty border of the armband slot
-                GameObject _fullBorder = target.transform.GetChild(7).gameObject; // Full border of the armband slot
-                GameObject _slotLayout = target.transform.GetChild(8).gameObject; // Slot layout of the armband slot
-                    
-                _backImage.SetActive(full); // Show the back image
-                _backGround.SetActive(full); // Show the background
-                _emptyBorder.SetActive(full); // Show the empty border
-                _fullBorder.SetActive(!full); // Hide the full border
-                _slotLayout.SetActive(!full); // Hide the slot layout
-            }
+            if (target.transform.childCount <= 8) return;
+
+            target.transform.GetChild(4).gameObject.SetActive(full);   // back image
+            target.transform.GetChild(5).gameObject.SetActive(full);   // background
+            target.transform.GetChild(6).gameObject.SetActive(full);   // empty border
+            target.transform.GetChild(7).gameObject.SetActive(!full);  // full border
+            target.transform.GetChild(8).gameObject.SetActive(!full);  // slot layout
         }
         #endregion
     }

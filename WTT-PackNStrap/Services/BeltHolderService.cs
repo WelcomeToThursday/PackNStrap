@@ -8,16 +8,12 @@ using WTTPackNStrap.Models;
 
 namespace WTTPackNStrap.Services;
 
-// injects the BeltHolder into the player's pockets hidden grid. living
-// inside pockets means the holder is raid-loaded and naturally part of
-// every save's inventory tree without us patching profile structure.
+// injects the BeltHolder into the player's pockets hidden grid (lives
+// inside pockets so it's part of every save's inventory tree without
+// touching profile structure).
 //
-// idempotent: returns existing id and repairs stale parent / slotId /
-// location if older profile data lingers.
-//
-// also flags the holder tpl in the profile's Encyclopedia so the inventory
-// move gates that check "is this item examined?" don't trip on it during
-// raid load.
+// idempotent: returns existing id and repairs stale parent/slot/location.
+// also flags the holder tpl in Encyclopedia so examined-gates don't trip.
 [Injectable(InjectionType.Singleton)]
 public class BeltHolderService(
     ProfileHelper profileHelper,

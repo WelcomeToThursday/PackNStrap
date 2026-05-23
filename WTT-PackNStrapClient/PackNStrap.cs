@@ -13,11 +13,9 @@ using WTTClientCommonLib.Services;
 
 namespace PackNStrap
 {
-    // com.cj.useFromAnywhere was a hard dependency upstream but never
-    // actually referenced in code (only declared via [BepInDependency]).
-    // dropped here so the plugin loads standalone - belt mod's reload
-    // patches subsume the "use mags/ammo/grenades from anywhere reasonable"
-    // behavior anyway.
+    // dropped the com.cj.useFromAnywhere hard dep - it was declared
+    // upstream but never actually referenced in code, and belt mod's
+    // reload patches now subsume that behavior.
     [BepInPlugin("com.wtt.packnstrap", "WTT-PackNStrap", "2.1.0")]
 
     internal class PackNStrap : BaseUnityPlugin

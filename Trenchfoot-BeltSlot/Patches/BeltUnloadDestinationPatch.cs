@@ -8,28 +8,18 @@ using SPT.Reflection.Patching;
 
 namespace BeltSlot.Patches
 {
-    // postfix on GClass3372.GetPrioritizedGridsForUnloadedObject that
-    // appends the BELT's grids to the priority list, so a magazine
-    // swapped out by reload (or any unloaded item) can be auto-placed
-    // back into the belt instead of being dropped.
+    // appends belt grids to the unloaded-object priority list so
+    // swapped-out magazines (or any unloaded item) can auto-place into
+    // the belt instead of dropping.
     //
-    // WTT-PackNStrapClient already has a prefix on this method that
-    // returns false (skip original) and computes its own priority list.
-    // its list references the legacy ArmBand-slot belt path which is
-    // empty under our refactor (belts live in BeltHolder.mod_belt now).
-    // postfixes still run after a skip-original prefix, so we tack belt
-    // grids onto whatever the prefix produced.
-    //
-    // ordering: belt grids appended at the END of the priority list so
-    // EFT fills pockets/rig first, then falls back to belt if those are
-    // full. MagDumpPouch-only result (when present) stays intact and
-    // belt is added as a fallback.
+    // WTT-PackNStrapClient already has a skip-original prefix on this
+    // method that builds its own list pointing at the legacy ArmBand
+    // belt path (empty under our refactor). postfixes still run after
+    // skip-original, so we tack on top of whatever the prefix produced.
     public class BeltUnloadDestinationPatch : ModulePatch
     {
         protected override MethodBase GetTargetMethod()
         {
-            // GClass3372 is the same target the existing PackNStrap patch
-            // uses; matching by name avoids hardcoding the obfuscated id.
             var t = AccessTools.TypeByName("GClass3372");
             if (t == null)
             {
@@ -48,15 +38,11 @@ namespace BeltSlot.Patches
             var belt = beltSlot?.ContainedItem as CompoundItem;
             if (belt == null) return;
 
-            // belt's Grids array. CompoundItem exposes Grids directly
-            // (StashGridClass[] field) - equivalent to what PackNStrap
-            // does for CustomBeltItemClass.Grids in its own prefix.
             var beltGrids = belt.Grids;
             if (beltGrids == null || beltGrids.Length == 0) return;
 
-            // append rather than prepend: EFT walks the priority list in
-            // order and the user's pockets/rig should be preferred over
-            // belt for "where did my swapped mag go".
+            // append, don't prepend: pockets/rig should be preferred
+            // landing spots over belt.
             __result = __result.Concat(beltGrids);
         }
     }

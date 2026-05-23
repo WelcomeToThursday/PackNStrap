@@ -1,31 +1,22 @@
 using System;
 using System.Collections.Generic;
-using System.Reflection;
 using BeltSlot.Helpers;
 using EFT.InventoryLogic;
 using HarmonyLib;
 
 namespace BeltSlot.Patches
 {
-    // makes MAGAZINES in the BELT reachable for reload. vanilla walks
-    // FastAccessSlots = [Pockets, TacticalVest] one level deep, so mags
-    // inside a belt (itself inside our hidden pockets grid) are
-    // unreachable.
+    // makes magazines in the belt reachable for reload. vanilla walks
+    // FastAccessSlots (pockets + rig) one level deep so the belt - which
+    // lives inside a hidden pockets grid - is out of reach.
     //
-    // HarmonyX quirk hard-confirmed: when multiple patches target different
-    // closed generics of the same open method (GetReachableItemsOfTypeNonAlloc<T>),
-    // only the LAST-registered patch's hook effectively fires. tried:
-    //   - separate ModulePatches (each with own Harmony)  -> last wins
-    //   - shared Harmony, three separate postfixes        -> last wins
-    //   - shared Harmony, ONE shared postfix              -> last wins
-    // collision is on the TARGET methodinfo (closed generic), not the
-    // postfix. so this file only patches MagazineItemClass - the single
-    // most-impactful reload type.
-    //
-    // AmmoItemClass (shell-by-shell shotgun/bolt-action) and ThrowWeapItemClass
-    // (grenades) would need caller-method patches via transpiler at the
-    // specific call sites in Class1730 / Class1725 to dodge the HarmonyX
-    // closed-generic collision. not done yet.
+    // patches the closed generic GetReachableItemsOfTypeNonAlloc<MagazineItemClass>.
+    // ammo and throwables can't use the same trick: HarmonyX fires this
+    // postfix on EVERY closed instantiation of the open method (verified -
+    // pressing G with mags + grenades crashed with ArrayTypeMismatch),
+    // so they go through caller-method transpilers instead (see
+    // BeltCallSiteTranspilers.cs). the guard below makes this postfix
+    // safe under that misfiring.
     public static class BeltReloadPatches
     {
         private static readonly Harmony _harmony = new Harmony("com.trenchfoot.beltslot.reload");
@@ -49,21 +40,11 @@ namespace BeltSlot.Patches
             if (__instance?.Inventory?.Equipment == null) return;
             if (preAllocatedList == null) return;
 
-            // HarmonyX closed-generic bug strikes again, more dangerously this
-            // time: even though we ONLY patched <MagazineItemClass>, this
-            // postfix actually fires on ALL closed generics of the open
-            // method (incl. <ThrowWeapItemClass> and <AmmoItemClass>). the C#
-            // signature still says IList<MagazineItemClass> so the compiler
-            // doesn't complain, but the runtime backing array is e.g.
+            // HarmonyX bug: this postfix fires on all closed instantiations
+            // of the open method, not just <MagazineItemClass>. the
+            // declared param type lies; the backing array can be e.g.
             // ThrowWeapItemClass[]. Add(mag) then throws
-            // ArrayTypeMismatchException which kills the caller (G key for
-            // grenades, R for shell-by-shell reload) BEFORE its own logic
-            // runs. observed in-raid: pressing G did nothing, shotgun
-            // shell reload broke, NRE spam in logs.
-            //
-            // guard: inspect the actual List<T>'s generic argument and bail
-            // if it's not really MagazineItemClass. cheap reflection on a
-            // type object - happens once per call, no per-item cost.
+            // ArrayTypeMismatchException and crashes the caller.
             var listType = preAllocatedList.GetType();
             if (!listType.IsGenericType || listType.GetGenericArguments()[0] != typeof(MagazineItemClass)) return;
 

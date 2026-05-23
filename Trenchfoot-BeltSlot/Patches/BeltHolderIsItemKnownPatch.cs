@@ -6,14 +6,12 @@ using SPT.Reflection.Patching;
 
 namespace BeltSlot.Patches
 {
-    // postfix the player search controller's IsItemKnown to return true for
-    // anything inside our belt holder hierarchy. side-effects:
-    //   - ContainsUnknownItems on the pockets stops counting our hidden
-    //     grid's holder/contents as unknowns, so the "needs search"
-    //     indicator on a corpse still fires when there are real unknowns
-    //     in the visible vanilla grids but not for our internal slot.
-    //   - the per-item "reveal" animation on pockets-search skips ours,
-    //     which keeps the search sound from being louder than it should be.
+    // PlayerSearchController.IsItemKnown returns true for items in our
+    // hierarchy so:
+    //   - pockets' ContainsUnknownItems ignores our hidden grid (the
+    //     "needs search" indicator on corpses still fires for real
+    //     unknowns elsewhere, just not for our internal slot)
+    //   - per-item reveal animation on pockets-search skips ours
     public class BeltHolderIsItemKnownPatch : ModulePatch
     {
         protected override MethodBase GetTargetMethod()

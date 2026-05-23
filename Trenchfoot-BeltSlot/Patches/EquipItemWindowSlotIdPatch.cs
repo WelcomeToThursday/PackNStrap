@@ -9,31 +9,27 @@ using UnityEngine;
 
 namespace BeltSlot.Patches
 {
-    // EquipItemWindow.Show parses slot.ID through Enum.TryParse<EquipmentSlot>
-    // and *throws* if it doesnt match a vanilla enum value. our belt slot
-    // is "mod_belt" - not a real EquipmentSlot - so the click on the BELT
-    // header surfaces an empty Available pane (and a throw under the hood).
+    // EquipItemWindow.Show parses slot.ID via Enum.TryParse<EquipmentSlot>
+    // and throws if it doesnt match a vanilla enum. our "mod_belt" isn't
+    // one. swap the slot's ID to "ArmBand" for the duration of Show,
+    // restore after.
     //
-    // fix mirrors LegArmor's EquipItemWindowSlotIdPatch: swap the slot's
-    // ID to "ArmBand" for the duration of Show, restore in postfix. safe
-    // because the parsed enum only special-cases Dogtag (different UI) and
-    // FirstPrimary/SecondPrimary (different layout); ArmBand hits neither.
-    // the actual available-items list comes from the slot's filter via
-    // method_4 -> InteractionsHandlerClass.GetItemsForAddress, not the enum.
+    // safe because the parsed enum only special-cases Dogtag (different
+    // UI) and FirstPrimary/SecondPrimary (different layout); ArmBand
+    // hits neither. the available-items list comes from the slot's
+    // filter via InteractionsHandlerClass.GetItemsForAddress, not the enum.
     public class EquipItemWindowSlotIdPatch : ModulePatch
     {
         private const string OurSlotId = BeltHolderHelper.BeltSlotName; // "mod_belt"
         private const string SubstituteId = "ArmBand";
 
-        // cached - this fires on every BELT header click.
         private static readonly FieldInfo SlotIdBackingField =
             AccessTools.Field(typeof(Slot), "<ID>k__BackingField");
 
         protected override MethodBase GetTargetMethod()
         {
-            // Show is overloaded; pin to the (Slot, InventoryController,
-            // ISession, SkillManager, Vector3) overload that the slot header
-            // click invokes via ItemUiContext.ShowEquipItemWindow.
+            // pin the (Slot, InventoryController, ISession, SkillManager,
+            // Vector3) overload that the slot header click invokes.
             return AccessTools.Method(
                 typeof(EquipItemWindow),
                 nameof(EquipItemWindow.Show),

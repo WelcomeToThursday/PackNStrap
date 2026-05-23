@@ -8,13 +8,10 @@ using WTTPackNStrap.Services;
 
 namespace WTTPackNStrap.Patches;
 
-// postfix BotGenerator.GenerateBot - fires for both regular wave bots
-// (PrepareAndGenerateBot -> GenerateBot) AND player scavs (PlayerScavGenerator
-// calls GenerateBot directly, skipping PrepareAndGenerateBot). hooking the
-// inner method catches all paths. mirrors LegArmor's BotGenerateHolderInjectPatch.
-//
-// wired by hand from WTTPackNStrap.OnLoad because PatchAll cant inject the
-// service.
+// postfix BotGenerator.GenerateBot - the inner method that fires for
+// both wave bots AND player scavs (PlayerScavGenerator skips the outer
+// PrepareAndGenerateBot wrapper). wired by hand from OnLoad because
+// PatchAll can't inject the service.
 [Injectable(InjectionType.Singleton)]
 public class BotGenerateBeltHolderPatch(
     BeltHolderBotInjectorService injector,

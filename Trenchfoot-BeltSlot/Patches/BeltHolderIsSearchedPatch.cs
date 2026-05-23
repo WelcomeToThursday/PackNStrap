@@ -7,16 +7,10 @@ using SPT.Reflection.Patching;
 
 namespace BeltSlot.Patches
 {
-    // GridItemView.NewGridItemView decides IsSearched based on whether the
-    // container is a grid marker AND the search controller "knows" the
-    // item. for items inside the bot's pockets - including our hidden
-    // grid's holder/belt - the player search controller's IsItemKnown
-    // returns false until the player explicitly searches the pockets. that
-    // makes the belt/holder un-clickable on corpse views.
-    //
-    // bypass: postfix and force IsSearched=true when the item descends
-    // from our belt holder. only affects items in our hierarchy; everything
-    // else in the corpse stays gated as vanilla.
+    // force IsSearched=true on the GridItemView for belt-holder items.
+    // GridItemView.NewGridItemView would otherwise leave them un-clickable
+    // on corpse views (player search controller's IsItemKnown returns
+    // false until the user explicitly searches the pockets).
     public class BeltHolderIsSearchedPatch : ModulePatch
     {
         protected override MethodBase GetTargetMethod()

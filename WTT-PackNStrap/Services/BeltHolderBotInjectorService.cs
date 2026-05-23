@@ -7,20 +7,13 @@ using WTTPackNStrap.Models;
 
 namespace WTTPackNStrap.Services;
 
-// injects an empty BeltHolder into every generated bot's pockets. without
-// this, bots have the hidden pockets grid (injected by PocketsGridInjectorService)
-// but no holder inside it - the corpse loot view's BeltSlotInjector then
-// short-circuits because GetBeltSlot returns null, so the player never sees
-// a BELT slot on bot corpses.
+// injects an empty BeltHolder into every generated bot's pockets so the
+// corpse loot view shows a BELT slot. holder is always empty on bots -
+// players who want belts on corpses loot them from elsewhere; we just
+// provide the slot.
 //
-// simpler than LegArmor's equivalent (LegArmorBotInjectorService) because we
-// never auto-equip an item in the slot - the holder is always empty on bots.
-// players who want belts on corpses can loot them from elsewhere; we just
-// give them the slot to drop loot into.
-//
-// also clears any random loot SPT might have placed in the hidden grid before
-// adding the holder (same reason LegArmor does it - the loot generator
-// doesnt know our grid is internal).
+// also clears anything SPT's loot generator dropped into the hidden grid
+// (it doesn't know our grid is internal).
 [Injectable(InjectionType.Singleton)]
 public class BeltHolderBotInjectorService(
     ISptLogger<BeltHolderBotInjectorService> logger)

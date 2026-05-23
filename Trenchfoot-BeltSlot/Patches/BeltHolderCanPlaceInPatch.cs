@@ -7,13 +7,9 @@ using SPT.Reflection.Patching;
 
 namespace BeltSlot.Patches
 {
-    // bypass "Cannot change the contents of an unsearched container"
-    // (GClass1565 / TransferToUnknownLocation) when placing items INTO our
-    // belt holder hierarchy from a corpse - e.g. shoving a magazine into a
-    // looted belt's pocket grid.
-    //
-    // gate is at InteractionsHandlerClass.smethod_24, the destination-side
-    // counterpart of CanModifyItem.
+    // destination-side counterpart of BeltHolderCanModifyItemPatch.
+    // bypasses TransferToUnknownLocation when placing items INTO our
+    // belt holder hierarchy from a corpse.
     public class BeltHolderCanPlaceInPatch : ModulePatch
     {
         protected override MethodBase GetTargetMethod()

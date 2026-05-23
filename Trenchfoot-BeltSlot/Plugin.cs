@@ -268,29 +268,14 @@ namespace BeltSlot
         #endregion
 
         #region Belt Settings
-        // pre-refactor we injected ArmBand into ContainersPanel.equipmentSlot_0
-        // so vanilla cloned an extra SlotView for the belt. that approach was
-        // tightly coupled to "rebind the cloned SlotView's Slot" which broke
-        // the inventory render every way we tried it.
-        //
-        // current approach mirrors LegArmor: leave the vanilla equipment slot
-        // array alone, and inject a brand-new SlotView via ContainersPanelPatch2's
-        // postfix on ContainersPanel.Show. SetSiblingIndex puts it above or
-        // below pockets based on Settings.BeltSlotLocation, no static-field
-        // mutation needed.
-        void SetEquipmentSlots()
-        {
-            // no-op now; preserved so existing callers don't break. layout is
-            // applied per-panel by BeltSlotInjector instead.
-        }
+        // layout is applied per-panel by BeltSlotInjector now. left as a
+        // no-op so legacy callers don't break.
+        void SetEquipmentSlots() { }
         #endregion
 
         private void Awake()
         {
             packNStrapInstalled = Chainloader.PluginInfos.Keys.Contains("com.wtt.packnstrap");
-            // pick hardcoded layout/behavior values based on whether LegArmor
-            // is also loaded. no BepInEx bindings anymore (used to be
-            // F12-tunable; values are locked in).
             var legArmorInstalled = Chainloader.PluginInfos.ContainsKey("com.manimal.legarmor");
             Settings.Init(Config, legArmorInstalled);
             Instance = this;
@@ -300,34 +285,15 @@ namespace BeltSlot
                 Log.LogInfo("[Belt Slots] LegArmor detected; using leg-armor-aware layout values");
 
             SetEquipmentSlots();
-            // legacy cloned-armband patches DISABLED: they all hooked
-            // various screen-open events to call SetXArmbandSlot* / Update*
-            // methods that walk to a "ArmBand Slot" GameObject under the
-            // containers content. that GameObject was created by adding
-            // ArmBand to ContainersPanel.equipmentSlot_0 - we no longer do
-            // that, so those Find()s return null and the chained
-            // .gameObject NREs every frame from ItemViewPatch. cascading
-            // exceptions broke corpse-view cleanup and stacked UI between
-            // bots.
-            //
-            // new BeltSlotInjectorPatch does all the work the legacy chain
-            // used to: postfix on ContainersPanel.Show clones a SlotView,
-            // binds to BeltHolder.mod_belt, positions per config.
-            //
-            // new ComplexStashPanelPatch().Enable();
-            // new ComplexStashPanelPatch2().Enable();
-            // new MainMenuControllerClassPatch().Enable();
-            // new ItemUiContextPatch().Enable();
-            // new EquipmentBuildsScreenPatch().Enable();
-            // new InventoryEquipmentPatch().Enable();
-            // new InventoryScreenPatch().Enable();
-            // new ItemViewPatch().Enable();
 
-            // belt-holder pattern: dedicated SlotView injected per panel,
-            // bound to BeltHolder.mod_belt. these patches make the holder
-            // hierarchy invisible (HideHolderGrid) and tolerant of unsearched
-            // corpse states (the bypass patches). without them, picking up
-            // gear off a bot before searching its pockets would error out.
+            // legacy cloned-armband UI patches removed - they walked to an
+            // "ArmBand Slot" GameObject that no longer exists under the
+            // BeltHolder pattern. BeltSlotInjectorPatch handles everything
+            // they used to.
+
+            // SlotView injection + holder hierarchy bypass patches. the
+            // bypass patches make corpse-loot work without the user
+            // having to search pockets first.
             new HideHolderGridPatch().Enable();
             new EquipItemWindowSlotIdPatch().Enable();
             new BeltSlotInjectorPatch().Enable();
@@ -336,40 +302,26 @@ namespace BeltSlot
             new BeltHolderIsSearchedPatch().Enable();
             new BeltHolderExaminedPatch().Enable();
             new BeltHolderSlotGatePatch().Enable();
-            // PlayerBodyMountBeltPatch stays off - constructing a
-            // PlayerBody.EquipmentSlotClass causes a duplicate Tactical Rig
-            // panel via side effects we havent untangled.
-            // new PlayerBodyMountBeltPatch().Enable();
             new BeltHolderIsItemKnownPatch().Enable();
-            // make items in the belt reachable for reload-style flows
-            // (magazines, loose ammo, throwables). single shared Harmony
-            // instance because ModulePatch's per-instance Harmony made the
-            // three closed-generic patches stomp on each other - only the
-            // last-registered patch's postfix actually fired in-game.
+
+            // disabled: constructing PlayerBody.EquipmentSlotClass produces
+            // a duplicate Tactical Rig panel via side effects we haven't
+            // untangled. keep the patch around in case we ever fix that.
+            // new PlayerBodyMountBeltPatch().Enable();
+
+            // reload-from-belt: mags via closed-generic postfix, ammo +
+            // throwables via caller-method transpilers (HarmonyX misfires
+            // generic-method postfixes across closed instantiations - see
+            // BeltReloadPatches/BeltCallSiteTranspilers).
             BeltReloadPatches.Apply();
-            // ammo (shell-by-shell) and throwables (G-key) can't use the
-            // same closed-generic postfix trick - HarmonyX only fires the
-            // last-registered patch on closed generics of the same open
-            // method. instead we patch the specific NON-generic caller
-            // methods via IL transpilers, injecting a helper call right
-            // after they call GetReachableItemsOfTypeNonAlloc<T>. each
-            // target gets its own unique patch target so there's no
-            // collision with the magazine patch above.
             BeltCallSiteTranspilers.Apply();
-            // append the belt's grids to the priority list for unloaded
-            // items so swapped-out mags can land back in the belt instead
-            // of being dropped. complements WTT-PackNStrapClient's own
-            // prefix on the same method which only knew about the legacy
-            // ArmBand-slot belt path.
+
+            // unload destination + quick-use binding.
             new BeltUnloadDestinationPatch().Enable();
-            // belt items (meds, food, grenades, knives, weapons, etc) can
-            // be bound to quick-use hotkeys (1-0) just like pocket/rig
-            // items. relaxes only the bind-time spatial gate; the bind
-            // type filter (no mags/ammo) and vital-parts/examined checks
-            // still apply.
             new BeltBindablePlacePatch().Enable();
 
-            // Enables the correct patch based on if PackNStrap is installed or not
+            // pick the right PackNStrap-aware variant of the
+            // GetPrioritizedContainers patch.
             if (packNStrapInstalled)
             {
                 new GetPrioritizedContainersPatch().Disable();

@@ -7,19 +7,11 @@ using SPT.Reflection.Patching;
 
 namespace BeltSlot.Patches
 {
-    // bypass the "InventoryError/UnknownItemManipulation" gate (GClass1566 -
-    // "Cannot interact with an unexamined item") for items in the belt
-    // holder hierarchy. when looting a bot corpse, items inside the bot's
-    // pockets get wrapped (GClass3367) and report state Unknown until the
-    // pockets are searched. our holder + the belt it contains should be
-    // freely interactable because the holder grid is conceptually a
-    // backend extension of the pockets we always control.
-    //
-    // gate path:
-    //   ItemView.UpdateRemoveError -> InteractionsHandlerClass.Remove
-    //     -> InteractionsHandlerClass.CanModifyItem
-    //     -> searchController.GetObserverItemState(item, from)
-    //     -> if Unknown, returns GClass1566 (UnknownItemManipulation)
+    // bypass the UnknownItemManipulation gate for items in the belt
+    // holder hierarchy. on a looted corpse, items inside the bot's
+    // pockets get wrapped and report Unknown until pockets are searched -
+    // but our holder/belt should be freely interactable because the
+    // hidden grid is conceptually a backend extension of the pockets.
     public class BeltHolderCanModifyItemPatch : ModulePatch
     {
         protected override MethodBase GetTargetMethod()

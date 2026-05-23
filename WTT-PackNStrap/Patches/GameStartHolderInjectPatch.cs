@@ -7,12 +7,10 @@ using WTTPackNStrap.Services;
 
 namespace WTTPackNStrap.Patches;
 
-// inject the belt-holder at /client/game/start so it lands in the profile
+// inject the belt-holder at /client/game/start so it's in the profile
 // json before the client fetches its inventory. lazy injection on first
-// inventory load is too late - the client has already cached.
-//
-// wired by hand from WTTPackNStrap.OnLoad because PatchAll cant inject
-// the BeltHolderService dependency.
+// load is too late. wired by hand because PatchAll can't inject the
+// service dependency.
 [Injectable(InjectionType.Singleton)]
 public class GameStartHolderInjectPatch(
     BeltHolderService holderService,
