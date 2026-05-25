@@ -6,23 +6,19 @@ using SPT.Reflection.Patching;
 
 namespace BeltSlot.Patches
 {
-    // alt-click "quick equip" goes through InventoryEquipment.FindSlotToPickUp
-    // (extension method in GClass3373). vanilla's cascade has hardcoded
-    // item-type -> equipment-slot mappings and doesn't know about our
-    // mod_belt slot - belts fall through to the Weapon/Container branch,
-    // get an empty slot list, and the call returns null -> "No free slot
-    // for that item" notification.
+    // alt-click "quick equip" goes through FindSlotToPickUp (extension
+    // method on GClass3373). vanilla's hardcoded item-type -> slot
+    // cascade doesn't know about our mod_belt slot - belts fall through
+    // to the Weapon/Container branch, return null, "No free slot for
+    // that item" notification.
     //
-    // postfix: when vanilla returned null, ask our mod_belt slot directly
-    // if it accepts the item. the slot's own filter (defined in the
-    // holder template) decides eligibility, so we don't need a type list
-    // here.
+    // postfix: when vanilla returned null, ask mod_belt directly. the
+    // slot's own filter (defined in the holder template) decides
+    // eligibility, so no type list needed here.
     public class BeltFindSlotPatch : ModulePatch
     {
         protected override MethodBase GetTargetMethod()
         {
-            // FindSlotToPickUp(InventoryEquipment, Item) - extension method
-            // living on GClass3373.
             var t = AccessTools.TypeByName("GClass3373");
             if (t == null)
             {
@@ -40,7 +36,7 @@ namespace BeltSlot.Patches
 
             var beltSlot = BeltHolderHelper.GetBeltSlot(equipment);
             if (beltSlot == null) return;
-            if (beltSlot.ContainedItem != null) return; // already occupied
+            if (beltSlot.ContainedItem != null) return;
 
             var address = beltSlot.FindLocationForItem(item, out _);
             if (address != null) __result = address;

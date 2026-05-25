@@ -8,29 +8,24 @@ using HarmonyLib;
 
 namespace BeltSlot.Patches
 {
-    // makes magazines, ammo, and throwables in the belt reachable for
-    // reload/throw. patches the specific (non-generic) caller methods
+    // makes mags / ammo / throwables in the belt reachable for reload
+    // and throw. patches the specific (non-generic) caller methods
     // rather than InventoryController.GetReachableItemsOfTypeNonAlloc<T>
     // because HarmonyX corrupts dispatch across closed instantiations of
     // a generic method.
     //
     // targets:
-    //   Class1725.vmethod_1                - throwables (G key)
-    //   Class1730.method_14/15/16           - barrel / cylinder / standard ammo
-    //   Class1730.method_17                 - magazine reload
+    //   Class1725.vmethod_1            - throwables (G key)
+    //   Class1730.method_14/15/16       - barrel / cylinder / standard ammo
+    //   Class1730.method_17             - magazine reload
     //
-    // arg-capture strategy: walk the IL backward from the GetReachable
-    // callvirt to find the three arg-pushes (controller field load, list
-    // field load, predicate newobj). after each push, insert a pass-through
-    // "stash" helper that takes the value off the stack, saves it to a
-    // static field, and returns it unchanged - stack-neutral, side-effect
-    // captures the arg. then after the callvirt, invoke our helper which
-    // reads the static stash and walks the belt.
-    //
-    // earlier attempt used transpiler-declared locals; first invocation
-    // worked but subsequent ones produced null on ldloc (HarmonyX/Mono
-    // quirk we couldn't pin down). statics survive across invocations
-    // by definition and EFT game logic is single-threaded so no contention.
+    // arg capture: walk IL backward from the GetReachable callvirt, find
+    // the controller and list pushes and insert a pass-through stash
+    // helper after each one. for the predicate we stash right before the
+    // callvirt itself rather than at its newobj - the C# compiler caches
+    // static-target delegates and a brtrue skips past the newobj on
+    // subsequent calls. label transfer (see below) is required for the
+    // same reason.
     public static class BeltCallSiteTranspilers
     {
         private static readonly Harmony _harmony = new Harmony("com.trenchfoot.beltslot.callsites");
@@ -78,6 +73,8 @@ namespace BeltSlot.Patches
                 Plugin.Instance?.Log?.LogWarning($"[Belt Slots] transpiler target method for {label} not found; skipping");
                 return;
             }
+            // one entry per item type so HarmonyMethod can bind without us
+            // needing to pass itemType as state.
             MethodInfo transpilerEntry;
             if (itemType == typeof(ThrowWeapItemClass))
                 transpilerEntry = AccessTools.Method(typeof(BeltCallSiteTranspilers), nameof(TranspileThrowables));
@@ -123,7 +120,6 @@ namespace BeltSlot.Patches
 
             var code = new List<CodeInstruction>(instructions);
 
-            // find the closed-generic callvirt.
             int callIdx = -1;
             for (int i = 0; i < code.Count; i++)
             {
@@ -141,17 +137,6 @@ namespace BeltSlot.Patches
                 return code;
             }
 
-            // walk backward from the callvirt to find list + controller
-            // push sites. for our targets these are stable ldsfld/ldfld
-            // patterns (controller from this.field, list from a static).
-            //
-            // we DON'T search for the predicate's newobj - the C# compiler
-            // caches static-target delegates so newobj only runs on the
-            // first call and a brtrue jumps past it on subsequent calls.
-            // anchoring stash at newobj+1 would only fire once. instead
-            // we stash the predicate right BEFORE the callvirt, where it's
-            // guaranteed to be at the top of the stack regardless of how
-            // it got there (fresh newobj or cached ldsfld).
             int listLoadIdx = FindListLoad(code, callIdx);
             int ctrlLoadIdx = (listLoadIdx > 0) ? FindControllerLoad(code, listLoadIdx) : -1;
 
@@ -161,8 +146,7 @@ namespace BeltSlot.Patches
                 return code;
             }
 
-            // insert post-call helper invocation FIRST (so indices below
-            // the callvirt aren't affected by our pre-call inserts).
+            // post-call insert first: indices below callIdx aren't shifted.
             code.InsertRange(callIdx + 1, new[]
             {
                 new CodeInstruction(OpCodes.Ldtoken, itemType),
@@ -170,20 +154,18 @@ namespace BeltSlot.Patches
                 new CodeInstruction(OpCodes.Call, runHelper),
             });
 
-            // insert stash calls in reverse-index order to keep prior
-            // positions valid: predicate stash at callIdx (right before
-            // callvirt), then list/controller stashes at their loads.
-            //
-            // CRITICAL: move any labels from the callvirt onto the stash
-            // insert. the C# delegate cache pattern uses a brtrue.s that
-            // jumps directly to the callvirt's label on the cached path -
-            // without label transfer, that branch skips our stash entirely
-            // on every call after the first.
+            // predicate stash at callIdx. CRITICAL: transfer the callvirt's
+            // labels onto the stash insert. the delegate cache pattern uses
+            // a brtrue.s that jumps directly to the callvirt's label on
+            // cached paths; without the transfer, that branch skips our
+            // stash on every call after the first.
             var stashPredInsn = new CodeInstruction(OpCodes.Call, stashPred);
             stashPredInsn.labels.AddRange(code[callIdx].labels);
             code[callIdx].labels.Clear();
             code.Insert(callIdx, stashPredInsn);
 
+            // list + controller stashes at their loads. lower indices, so
+            // these don't shift the already-placed predicate or post-call.
             code.Insert(listLoadIdx + 1, new CodeInstruction(OpCodes.Call, stashList));
             code.Insert(ctrlLoadIdx + 1, new CodeInstruction(OpCodes.Call, stashCtrl));
 
@@ -192,15 +174,14 @@ namespace BeltSlot.Patches
 
         private static int FindListLoad(List<CodeInstruction> code, int beforeIdx)
         {
-            // single ldsfld that pushes an IList. true for all our targets
-            // (vanilla uses Class1730.List_0 / List_1 / this.List_1).
+            // ldsfld or ldfld whose result is an IList. covers Class1730's
+            // static List_0/List_1 and Class1725's this.List_1.
             for (int i = beforeIdx - 1; i >= 0; i--)
             {
                 if (code[i].opcode == OpCodes.Ldsfld
                     && code[i].operand is FieldInfo sf
                     && typeof(System.Collections.IList).IsAssignableFrom(sf.FieldType))
                     return i;
-                // Class1725.vmethod_1 uses this.List_1 (instance field).
                 if (code[i].opcode == OpCodes.Ldfld
                     && code[i].operand is FieldInfo inf
                     && typeof(System.Collections.IList).IsAssignableFrom(inf.FieldType))
@@ -211,10 +192,8 @@ namespace BeltSlot.Patches
 
         private static int FindControllerLoad(List<CodeInstruction> code, int beforeIdx)
         {
-            // last instruction whose result is an InventoryController.
-            // either ldfld of an InventoryController field (Class1730 case)
-            // or callvirt of a Player.InventoryController getter
-            // (Class1725.vmethod_1 case, where the controller comes from
+            // ldfld of an InventoryController field (Class1730 case) OR
+            // callvirt of a getter that returns one (Class1725 -
             // this.Player_0.InventoryController).
             for (int i = beforeIdx - 1; i >= 0; i--)
             {
@@ -231,6 +210,9 @@ namespace BeltSlot.Patches
         }
     }
 
+    // type-erased helper invoked from transpiled IL. predicate is boxed
+    // as object and called via reflection so the emit doesn't have to
+    // know about closed generics.
     public static class BeltCallSiteHelper
     {
         public static void AddBeltItems(System.Collections.IList list, object predicate, InventoryController controller, Type itemType)

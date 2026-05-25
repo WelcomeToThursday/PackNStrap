@@ -8,24 +8,18 @@ using SPT.Reflection.Patching;
 
 namespace BeltSlot.Patches
 {
-    // works around a visual bug: items dragged out of the belt into a
-    // normal grid (rig/pockets) place correctly in the data and a
-    // healthy ItemView gets created, but the icon doesn't render until
-    // the inventory is closed and reopened. root cause was traced to
-    // something downstream of method_5 (likely an async sprite-load
-    // timing thing tied to the pool path the belt-source destination
-    // view takes); we couldn't pin it precisely.
+    // workaround for a visual bug where items dragged out of the belt
+    // into a normal grid place correctly in the data and even get a
+    // healthy destination ItemView, but the icon doesn't render until
+    // the inventory is closed and reopened. root cause is somewhere in
+    // the rendering pipeline downstream of method_5 - couldn't pin it.
     //
     // brute force: on OnItemAdded(Succeed) for any destination, rebuild
     // the just-created ItemView via the same method_4 call PrepareItems
-    // uses on Show. that's the in-process equivalent of close+reopen for
-    // the one affected view. method_5 (called inside method_4) handles
-    // the dict bookkeeping (Remove + Kill old, Add new).
-    //
-    // applied unconditionally rather than only on belt-source moves
-    // because by Succeed time the item's CurrentAddress is the
-    // destination - source isn't directly knowable. cost is one extra
-    // factory call per Succeed event, which is cheap.
+    // uses on Show. in-process equivalent of close+reopen for one view.
+    // applied unconditionally because by Succeed time the item's
+    // CurrentAddress is already the destination so we can't cheaply
+    // detect "source was belt" - cost is one extra factory call per add.
     public class BeltMoveRefreshPatch : ModulePatch
     {
         private static readonly FieldInfo ItemUiContextField =

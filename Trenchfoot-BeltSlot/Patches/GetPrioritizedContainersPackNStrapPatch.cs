@@ -9,12 +9,9 @@ using System.Reflection;
 
 namespace BeltSlot.Patches
 {
-    // builds the ground-loot priority list. fork of the original PackNStrap
-    // patch with two changes:
-    //   - belt is sourced via BeltHolderHelper (mod_belt slot) instead of
-    //     the legacy ArmBand slot, which is empty under our refactor.
-    //   - falls back to ArmBand slot if the holder isn't found, so old
-    //     PackNStrap-style belts still place into.
+    // ground-loot priority list. fork of the upstream PackNStrap patch
+    // that sources the belt from BeltHolder.mod_belt instead of the
+    // legacy ArmBand slot. falls back to ArmBand for old-style loadouts.
     public class GetPrioritizedContainersPackNStrapPatch : ModulePatch
     {
         protected override MethodBase GetTargetMethod()
@@ -30,8 +27,7 @@ namespace BeltSlot.Patches
             var pockets = equipment.GetSlot(EquipmentSlot.Pockets).ContainedItem as PocketsItemClass;
             var secured = equipment.GetSlot(EquipmentSlot.SecuredContainer).ContainedItem as MobContainerItemClass;
 
-            // belt comes from BeltHolder.mod_belt under our refactor. fall
-            // back to the ArmBand slot for legacy PackNStrap loadouts.
+            // belt = our mod_belt first, ArmBand fallback for legacy.
             var beltSlot = BeltHolderHelper.GetBeltSlot(equipment);
             var beltItem = beltSlot?.ContainedItem;
             CustomBeltItemClass customBelt = beltItem as CustomBeltItemClass;
