@@ -318,6 +318,8 @@ namespace BeltSlot
             // unload destination + quick-use binding.
             new BeltUnloadDestinationPatch().Enable();
             new BeltBindablePlacePatch().Enable();
+            // alt-click quick-equip routing into mod_belt.
+            new BeltFindSlotPatch().Enable();
 
             // workaround for the belt-source-move invisible-icon bug.
             new BeltMoveRefreshPatch().Enable();

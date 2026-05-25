@@ -120,7 +120,6 @@ namespace BeltSlot.Patches
             var stashList = AccessTools.Method(typeof(BeltCallSiteTranspilers), nameof(StashList));
             var stashPred = AccessTools.Method(typeof(BeltCallSiteTranspilers), nameof(StashPredicate));
             var getTypeFromHandle = AccessTools.Method(typeof(Type), nameof(Type.GetTypeFromHandle));
-            var predicateCtor = typeof(Predicate<>).MakeGenericType(itemType).GetConstructor(new[] { typeof(object), typeof(IntPtr) });
 
             var code = new List<CodeInstruction>(instructions);
 
@@ -142,21 +141,23 @@ namespace BeltSlot.Patches
                 return code;
             }
 
-            // walk backward from the callvirt to find each arg's last push.
-            // for all our target methods the IL pattern is:
-            //   <load this.controller>      ; ldarg.0 + ldfld   OR  ldarg.0 + ldfld + callvirt-getter chain
-            //   ldsfld <static List_X>      ; list push
-            //   <load closure>              ; ldarg.0/ldsfld/ldloc
-            //   ldftn <method>
-            //   newobj Predicate<T>::.ctor  ; predicate push
-            //   callvirt GetReachable<T>    ; the call we're matching
-            int predicateNewobjIdx = FindPredicateNewobj(code, callIdx, predicateCtor);
-            int listLoadIdx = (predicateNewobjIdx > 0) ? FindListLoad(code, predicateNewobjIdx) : -1;
+            // walk backward from the callvirt to find list + controller
+            // push sites. for our targets these are stable ldsfld/ldfld
+            // patterns (controller from this.field, list from a static).
+            //
+            // we DON'T search for the predicate's newobj - the C# compiler
+            // caches static-target delegates so newobj only runs on the
+            // first call and a brtrue jumps past it on subsequent calls.
+            // anchoring stash at newobj+1 would only fire once. instead
+            // we stash the predicate right BEFORE the callvirt, where it's
+            // guaranteed to be at the top of the stack regardless of how
+            // it got there (fresh newobj or cached ldsfld).
+            int listLoadIdx = FindListLoad(code, callIdx);
             int ctrlLoadIdx = (listLoadIdx > 0) ? FindControllerLoad(code, listLoadIdx) : -1;
 
-            if (predicateNewobjIdx < 0 || listLoadIdx < 0 || ctrlLoadIdx < 0)
+            if (listLoadIdx < 0 || ctrlLoadIdx < 0)
             {
-                Plugin.Instance?.Log?.LogWarning($"[Belt Slots] transpiler couldn't identify arg pushes for {itemType.Name} (pred={predicateNewobjIdx} list={listLoadIdx} ctrl={ctrlLoadIdx}); injection skipped");
+                Plugin.Instance?.Log?.LogWarning($"[Belt Slots] transpiler couldn't identify arg pushes for {itemType.Name} (list={listLoadIdx} ctrl={ctrlLoadIdx}); injection skipped");
                 return code;
             }
 
@@ -169,25 +170,24 @@ namespace BeltSlot.Patches
                 new CodeInstruction(OpCodes.Call, runHelper),
             });
 
-            // insert stash calls AFTER each arg-push (reverse order so
-            // earlier indices don't shift while we work).
-            code.Insert(predicateNewobjIdx + 1, new CodeInstruction(OpCodes.Call, stashPred));
+            // insert stash calls in reverse-index order to keep prior
+            // positions valid: predicate stash at callIdx (right before
+            // callvirt), then list/controller stashes at their loads.
+            //
+            // CRITICAL: move any labels from the callvirt onto the stash
+            // insert. the C# delegate cache pattern uses a brtrue.s that
+            // jumps directly to the callvirt's label on the cached path -
+            // without label transfer, that branch skips our stash entirely
+            // on every call after the first.
+            var stashPredInsn = new CodeInstruction(OpCodes.Call, stashPred);
+            stashPredInsn.labels.AddRange(code[callIdx].labels);
+            code[callIdx].labels.Clear();
+            code.Insert(callIdx, stashPredInsn);
+
             code.Insert(listLoadIdx + 1, new CodeInstruction(OpCodes.Call, stashList));
             code.Insert(ctrlLoadIdx + 1, new CodeInstruction(OpCodes.Call, stashCtrl));
 
             return code;
-        }
-
-        private static int FindPredicateNewobj(List<CodeInstruction> code, int beforeIdx, ConstructorInfo predicateCtor)
-        {
-            for (int i = beforeIdx - 1; i >= 0; i--)
-            {
-                if (code[i].opcode == OpCodes.Newobj
-                    && code[i].operand is ConstructorInfo c
-                    && c == predicateCtor)
-                    return i;
-            }
-            return -1;
         }
 
         private static int FindListLoad(List<CodeInstruction> code, int beforeIdx)
