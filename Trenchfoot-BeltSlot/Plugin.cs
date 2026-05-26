@@ -304,10 +304,11 @@ namespace BeltSlot
             new BeltHolderSlotGatePatch().Enable();
             new BeltHolderIsItemKnownPatch().Enable();
 
-            // disabled: constructing PlayerBody.EquipmentSlotClass produces
-            // a duplicate Tactical Rig panel via side effects we haven't
-            // untangled. keep the patch around in case we ever fix that.
-            // new PlayerBodyMountBeltPatch().Enable();
+            // mounts the belt visual on the player body. previously
+            // disabled because constructing EquipmentSlotClass produced a
+            // duplicate Tactical Rig panel - need to re-test and confirm
+            // whether that side effect still occurs.
+            new PlayerBodyMountBeltPatch().Enable();
 
             // reload-from-belt: mags, ammo, and throwables all go through
             // caller-method transpilers (the closed-generic postfix
@@ -323,6 +324,10 @@ namespace BeltSlot
 
             // workaround for the belt-source-move invisible-icon bug.
             new BeltMoveRefreshPatch().Enable();
+
+            // DIAGNOSTIC: track G-key dispatch to figure out the
+            // "sometimes pulls out wrong weapon" bug. REMOVE.
+            new DiagnoseGrenadeKeyPatch().Enable();
 
             // pick the right PackNStrap-aware variant of the
             // GetPrioritizedContainers patch.
