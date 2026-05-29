@@ -40,14 +40,16 @@ namespace BeltSlot.Helpers
             PocketsOffsetY = 0f,
         };
 
-        // Belt owns the pockets offset in this case; LegArmor's
-        // WithBeltSlot.PocketsSlot is zeroed to avoid stacking.
+        // Belt owns the pockets offset; LegArmor's WithBeltSlot.PocketsSlot
+        // is zeroed to avoid stacking. PocketsOffsetY = 0 because the
+        // belt's expanded grids displace the layout enough on their own;
+        // any positive value adds a spacer gap before pockets.
         private static readonly Defaults WithLegArmor = new Defaults
         {
             InjectSpacer = true,
             SpacerHeight = 0f,
             SlotOffsetY = 16f,
-            PocketsOffsetY = 60f,
+            PocketsOffsetY = 0f,
         };
 
         public static void Init(ConfigFile Config, bool isLegArmorInstalled = false)

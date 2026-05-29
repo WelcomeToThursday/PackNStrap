@@ -23,6 +23,7 @@ namespace BeltSlot.Patches
         // sv.Slot.ID, not the name.
         private const string InjectedName = "BeltSlotView";
         private const string SpacerName = "BeltSlotSpacer";
+        private const string PocketsSpacerName = "BeltPocketsSpacer";
 
         private static readonly FieldInfo SlotViewsContainerField =
             AccessTools.Field(typeof(ContainersPanel), "_slotViewsContainer");
@@ -132,9 +133,10 @@ namespace BeltSlot.Patches
             offsetter.OffsetFn = () => Settings.BeltSlotOffsetY;
         }
 
-        // Belt owns the pockets offset across standalone + LegArmor cases.
-        // LegArmor's WithBeltSlot.PocketsSlot is zeroed when Belt loads
-        // so the two don't stack.
+        // pockets gets a spacer (sibling LayoutElement) instead of a
+        // runtime offsetter. spacer is VLG-native and survives reflows;
+        // offsetter compounded during the search-reveal animation and
+        // sent pockets off-screen.
         private static void ApplyPocketsOffset(Transform container)
         {
             for (int i = 0; i < container.childCount; i++)
@@ -146,21 +148,33 @@ namespace BeltSlot.Patches
                 var rt = c as RectTransform;
                 if (rt == null) return;
 
-                var offsetter = rt.GetComponent<BeltSlotOffsetter>();
-                if (offsetter == null) offsetter = rt.gameObject.AddComponent<BeltSlotOffsetter>();
-                offsetter.OffsetFn = () => Settings.PocketsSlotOffsetY;
+                var offsetVal = Mathf.Max(0f, Settings.PocketsSlotOffsetY);
+                if (offsetVal > 0f)
+                    EnsureNamedSpacerBefore(rt, offsetVal, PocketsSpacerName);
+                else
+                    DestroyNamedSpacerBefore(rt, PocketsSpacerName);
+
+                // tear down any leftover runtime offsetter from old versions.
+                var legacyOffsetter = rt.GetComponent<BeltSlotOffsetter>();
+                if (legacyOffsetter != null) UnityEngine.Object.Destroy(legacyOffsetter);
                 return;
             }
         }
 
         private static void DestroySpacerBefore(RectTransform slotRt)
+            => DestroyNamedSpacerBefore(slotRt, SpacerName);
+
+        private static void EnsureSpacerBefore(RectTransform slotRt, float height)
+            => EnsureNamedSpacerBefore(slotRt, height, SpacerName);
+
+        private static void DestroyNamedSpacerBefore(RectTransform slotRt, string spacerName)
         {
             var parent = slotRt.parent;
             if (parent == null) return;
             for (int i = 0; i < parent.childCount; i++)
             {
                 var c = parent.GetChild(i);
-                if (c.name == SpacerName)
+                if (c.name == spacerName)
                 {
                     UnityEngine.Object.DestroyImmediate(c.gameObject);
                     return;
@@ -168,7 +182,7 @@ namespace BeltSlot.Patches
             }
         }
 
-        private static void EnsureSpacerBefore(RectTransform slotRt, float height)
+        private static void EnsureNamedSpacerBefore(RectTransform slotRt, float height, string spacerName)
         {
             var parent = slotRt.parent;
             if (parent == null) return;
@@ -177,12 +191,12 @@ namespace BeltSlot.Patches
             for (int i = 0; i < parent.childCount; i++)
             {
                 var c = parent.GetChild(i);
-                if (c.name == SpacerName) { spacer = c; break; }
+                if (c.name == spacerName) { spacer = c; break; }
             }
 
             if (spacer == null)
             {
-                var go = new GameObject(SpacerName, typeof(RectTransform), typeof(UnityEngine.UI.LayoutElement));
+                var go = new GameObject(spacerName, typeof(RectTransform), typeof(UnityEngine.UI.LayoutElement));
                 go.transform.SetParent(parent, false);
                 spacer = go.transform;
             }

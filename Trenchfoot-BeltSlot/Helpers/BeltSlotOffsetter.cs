@@ -3,10 +3,11 @@ using UnityEngine;
 
 namespace BeltSlot.Helpers
 {
-    // attached to corpse-loot SlotViews. each LateUpdate, applies a Y
-    // offset on top of the VLG-computed natural position; detects reflow
-    // (search reveal, drag/drop) by noticing when current Y diverges
-    // from what we last wrote, and re-anchors to the new baseline.
+    // applies a Y offset on top of the VLG-computed natural position each
+    // LateUpdate. detects real reflow (currentY diverges from lastWritten
+    // by something other than -offset) and re-baselines; ignores drift
+    // that exactly undoes our last offset (the VLG-pulled-us-back case)
+    // to avoid compounding off-screen when the panel reflows every frame.
     //
     // duplicated from LegArmor's CorpseSlotOffsetter rather than shared
     // because Belt deliberately doesn't depend on LegArmor.
@@ -28,11 +29,16 @@ namespace BeltSlot.Helpers
             if (_rt == null || OffsetFn == null) return;
 
             var currentY = _rt.anchoredPosition.y;
+            var offset = OffsetFn();
 
-            if (float.IsNaN(_lastWrittenY) || Mathf.Abs(currentY - _lastWrittenY) > 0.1f)
+            // current ~= lastWritten - offset means "vlg pulled us back to
+            // natural" - keep existing baseline.
+            var driftIsUndo = !float.IsNaN(_lastWrittenY)
+                && Mathf.Abs(currentY - (_lastWrittenY - offset)) < 1f;
+
+            if (float.IsNaN(_lastWrittenY) || (!driftIsUndo && Mathf.Abs(currentY - _lastWrittenY) > 0.1f))
                 _baselineY = currentY;
 
-            var offset = OffsetFn();
             var targetY = _baselineY + offset;
             if (Mathf.Abs(targetY - currentY) > 0.1f)
             {

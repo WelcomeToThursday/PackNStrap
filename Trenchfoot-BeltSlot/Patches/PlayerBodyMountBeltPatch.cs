@@ -18,11 +18,13 @@ namespace BeltSlot.Patches
     // and crashes on synthetic keys. we keep the EquipmentSlotClass
     // alive ourselves in _liveSlots.
     //
-    // ArmBand type hint passed to the visual loader because PackNStrap's
-    // belt bundles were authored against the armband renderer.
+    // ArmorVest hint matches LegArmor's working pattern; mesh placement
+    // comes from the prefab's bone bindings so the hint just gates which
+    // internal loader path runs.
     //
-    // currently DISABLED in Plugin.cs - constructing the EquipmentSlotClass
-    // has side effects that produce a duplicate Tactical Rig panel.
+    // companion patch BeltMountSuppressOnSlotViewChangedPatch swallows
+    // the post-mount OnSlotViewChanged event - that event would
+    // otherwise drive a corpse-loot UI cascade.
     //
     // known limitation (same as LegArmor): the mounted visual shows on
     // third-person preview bodies but is invisible to first-person camera
@@ -33,6 +35,12 @@ namespace BeltSlot.Patches
         private const string HolderSlotName = BeltHolderHelper.BeltSlotName;
 
         private static readonly Dictionary<PlayerBody, PlayerBody.EquipmentSlotClass> _liveSlots = new();
+
+        // bodies where the next OnSlotViewChanged (fired by method_4 after
+        // the async prefab load) should be swallowed - that event drives
+        // UI subscribers and triggered the per-frame reflow we tried to
+        // dodge. only used while the patch is enabled.
+        private static readonly HashSet<PlayerBody> _suppressNextSlotViewChanged = new();
 
         // EquipmentSlotClass.Dispose also calls DestroyCurrentModel, which
         // returns the GameObject to the pool. we want to release the
@@ -153,8 +161,12 @@ namespace BeltSlot.Patches
 
         private static void MountNow(PlayerBody body, Slot slot, Transform bone)
         {
+            // swallow the post-mount OnSlotViewChanged event - it drives
+            // a corpse-loot UI cascade we don't want to trigger.
+            _suppressNextSlotViewChanged.Add(body);
+
             var slotClass = new PlayerBody.EquipmentSlotClass(
-                body, slot, bone, EquipmentSlot.ArmBand, null, null, false);
+                body, slot, bone, EquipmentSlot.ArmorVest, null, null, false);
 
             // release the binding immediately - persistent binding stalls
             // inventory transactions on slot moves (LegArmor's stash-
@@ -176,6 +188,27 @@ namespace BeltSlot.Patches
                 try { unbind(); } catch { /* best effort */ }
             }
             field.SetValue(slotClass, null);
+        }
+
+        // exposes the suppression set to the companion prefix patch.
+        internal static bool ConsumeSuppression(PlayerBody body)
+            => body != null && _suppressNextSlotViewChanged.Remove(body);
+    }
+
+    // prefix on PlayerBody.OnSlotViewChanged that drops the event for
+    // bodies in PlayerBodyMountBeltPatch's "just mounted" set. one-shot
+    // per add: after consuming, future calls pass through normally.
+    public class BeltMountSuppressOnSlotViewChangedPatch : ModulePatch
+    {
+        protected override MethodBase GetTargetMethod()
+        {
+            return AccessTools.Method(typeof(PlayerBody), nameof(PlayerBody.OnSlotViewChanged));
+        }
+
+        [PatchPrefix]
+        private static bool Prefix(PlayerBody __instance)
+        {
+            return !PlayerBodyMountBeltPatch.ConsumeSuppression(__instance);
         }
     }
 }
