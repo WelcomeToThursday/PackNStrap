@@ -319,6 +319,12 @@ namespace BeltSlot
             // unload destination + quick-use binding.
             new BeltUnloadDestinationPatch().Enable();
             new BeltBindablePlacePatch().Enable();
+            // make belt grenades visible to the grenade-cycle UI (hold G +
+            // scroll), the quickbar refresh logic, and the FastAccess
+            // grenade item view's add/remove hooks.
+            new BeltGrenadePriorityListPatch().Enable();
+            new BeltGrenadeNonAllocPatch().Enable();
+            new BeltGrenadeThrowingSlotsPatch().Enable();
             // alt-click quick-equip routing into mod_belt.
             new BeltFindSlotPatch().Enable();
 
