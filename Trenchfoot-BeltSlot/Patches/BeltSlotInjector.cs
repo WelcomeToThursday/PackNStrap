@@ -56,6 +56,7 @@ namespace BeltSlot.Patches
                 slotView.Show(beltSlot, parentContext, inventoryController, ItemUiContext.Instance, skills, insurance, !inRaid);
                 SetHeaderText(slotView, "BELT");
                 PositionRelativeToPockets(slotView.transform, container);
+                ApplyEmptyHeightCap(slotView.transform as RectTransform, beltSlot.ContainedItem != null);
 
                 // corpse loot only: apply user spacer + offset. detect via
                 // reference compare since corpse loot passes the bot's
@@ -131,6 +132,29 @@ namespace BeltSlot.Patches
             var offsetter = beltRt.GetComponent<BeltSlotOffsetter>();
             if (offsetter == null) offsetter = beltRt.gameObject.AddComponent<BeltSlotOffsetter>();
             offsetter.OffsetFn = () => Settings.BeltSlotOffsetY;
+        }
+
+        // height in pixels for an empty belt slot. just enough to show
+        // the BELT header and the empty-slot placeholder; without this
+        // override the SearchableSlotView's child panels (_gridsContainer,
+        // _specSlotsPanel) keep their layout space and leave a big gap
+        // between belt and pockets.
+        private const float EmptySlotPreferredHeight = 100f;
+
+        private static void ApplyEmptyHeightCap(RectTransform slotRt, bool hasItem)
+        {
+            if (slotRt == null) return;
+            var le = slotRt.GetComponent<UnityEngine.UI.LayoutElement>();
+            if (hasItem)
+            {
+                // let the prefab's natural layout size the slot (expanded
+                // for belt + grids). zero out any override we previously set.
+                if (le != null) { le.preferredHeight = -1f; le.minHeight = -1f; }
+                return;
+            }
+            if (le == null) le = slotRt.gameObject.AddComponent<UnityEngine.UI.LayoutElement>();
+            le.preferredHeight = EmptySlotPreferredHeight;
+            le.minHeight = EmptySlotPreferredHeight;
         }
 
         // pockets gets a spacer (sibling LayoutElement) instead of a

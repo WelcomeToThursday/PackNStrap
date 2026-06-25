@@ -12,8 +12,10 @@ namespace WTTPackNStrap.Services;
 // players who want belts on corpses loot them from elsewhere; we just
 // provide the slot.
 //
-// also clears anything SPT's loot generator dropped into the hidden grid
-// (it doesn't know our grid is internal).
+// also clears any stale state SPT's loot generator might leave behind:
+//   - items dropped into the hidden grid directly
+//   - items dropped into an existing holder's mod_belt slot (and any
+//     descendant items, e.g. an Assaulter belt with mags inside)
 [Injectable(InjectionType.Singleton)]
 public class BeltHolderBotInjectorService(
     ISptLogger<BeltHolderBotInjectorService> logger)
@@ -31,19 +33,32 @@ public class BeltHolderBotInjectorService(
             i.ParentId == equipmentId && i.SlotId == "Pockets");
         if (pockets == null) return;
 
-        // guard against double-fires (re-applied hook, etc).
-        if (bot.Inventory.Items.Any(i => i.Template == HolderTpl)) return;
+        var pocketsIdStr = pockets.Id.ToString();
 
         // clear anything SPT's loot generator dropped into the hidden grid.
-        // recursive to take child items too (e.g. ammo in a magazine in a
-        // randomly-placed weapon, however unlikely).
-        ClearHiddenGrid(bot.Inventory.Items, pockets.Id.ToString());
+        // recursive: also gets any descendant items inside (e.g. a stray
+        // belt that happens to be sitting on top of the slot).
+        ClearHiddenGrid(bot.Inventory.Items, pocketsIdStr);
+
+        // find existing holders. ClearHiddenGrid above would have removed
+        // holders that were direct children of the hidden grid, but stale
+        // holders might exist elsewhere (older save state etc).
+        var existingHolder = bot.Inventory.Items.FirstOrDefault(i => i.Template == HolderTpl);
+        if (existingHolder != null)
+        {
+            // empty the holder of any contents (mod_belt slot + descendants).
+            // observed in practice: bots ended up with a random Assaulter
+            // belt + magazine inside a pre-existing holder, presumably
+            // placed by loot generation before our injection ran.
+            ClearDescendants(bot.Inventory.Items, existingHolder.Id.ToString());
+            return;
+        }
 
         bot.Inventory.Items.Add(new Item
         {
             Id = new MongoId(),
             Template = HolderTpl,
-            ParentId = pockets.Id.ToString(),
+            ParentId = pocketsIdStr,
             SlotId = HolderIds.HiddenGridName,
             Location = new ItemLocation { X = 0, Y = 0, R = ItemRotation.Horizontal, IsSearched = true },
         });
@@ -58,6 +73,18 @@ public class BeltHolderBotInjectorService(
 
         var toRemove = new HashSet<string>();
         foreach (var item in stale) CollectDescendants(items, item.Id.ToString(), toRemove);
+        items.RemoveAll(i => toRemove.Contains(i.Id.ToString()));
+    }
+
+    // removes every item whose ParentId chain leads to parentId. parent
+    // itself is kept.
+    private static void ClearDescendants(List<Item> items, string parentId)
+    {
+        var directChildren = items.Where(i => i.ParentId == parentId).Select(i => i.Id.ToString()).ToList();
+        if (directChildren.Count == 0) return;
+
+        var toRemove = new HashSet<string>();
+        foreach (var childId in directChildren) CollectDescendants(items, childId, toRemove);
         items.RemoveAll(i => toRemove.Contains(i.Id.ToString()));
     }
 
