@@ -56,7 +56,7 @@ namespace BeltSlot.Patches
                 slotView.Show(beltSlot, parentContext, inventoryController, ItemUiContext.Instance, skills, insurance, !inRaid);
                 SetHeaderText(slotView, "BELT");
                 PositionRelativeToPockets(slotView.transform, container);
-                ApplyEmptyHeightCap(slotView.transform as RectTransform, beltSlot.ContainedItem != null);
+                BindHeightCapper(slotView, beltSlot);
 
                 // corpse loot only: apply user spacer + offset. detect via
                 // reference compare since corpse loot passes the bot's
@@ -134,27 +134,21 @@ namespace BeltSlot.Patches
             offsetter.OffsetFn = () => Settings.BeltSlotOffsetY;
         }
 
-        // height in pixels for an empty belt slot. just enough to show
-        // the BELT header and the empty-slot placeholder; without this
-        // override the SearchableSlotView's child panels (_gridsContainer,
+        // height cap for an empty belt slot. without it the
+        // SearchableSlotView's child panels (_gridsContainer,
         // _specSlotsPanel) keep their layout space and leave a big gap
         // between belt and pockets.
         private const float EmptySlotPreferredHeight = 100f;
 
-        private static void ApplyEmptyHeightCap(RectTransform slotRt, bool hasItem)
+        // attaches a live capper. ApplyEmptyHeightCap used to fire once
+        // per ContainersPanel.Show, so if the slot filled mid-session the
+        // cap stayed at the empty height and the grids overflowed into
+        // pockets. capper subscribes to OnAddOrRemoveItem and updates.
+        private static void BindHeightCapper(SlotView slotView, Slot slot)
         {
-            if (slotRt == null) return;
-            var le = slotRt.GetComponent<UnityEngine.UI.LayoutElement>();
-            if (hasItem)
-            {
-                // let the prefab's natural layout size the slot (expanded
-                // for belt + grids). zero out any override we previously set.
-                if (le != null) { le.preferredHeight = -1f; le.minHeight = -1f; }
-                return;
-            }
-            if (le == null) le = slotRt.gameObject.AddComponent<UnityEngine.UI.LayoutElement>();
-            le.preferredHeight = EmptySlotPreferredHeight;
-            le.minHeight = EmptySlotPreferredHeight;
+            var capper = slotView.GetComponent<BeltSlotLayoutCapper>();
+            if (capper == null) capper = slotView.gameObject.AddComponent<BeltSlotLayoutCapper>();
+            capper.Bind(slot);
         }
 
         // pockets gets a spacer (sibling LayoutElement) instead of a

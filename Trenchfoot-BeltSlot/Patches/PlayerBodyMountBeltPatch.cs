@@ -36,6 +36,11 @@ namespace BeltSlot.Patches
 
         private static readonly Dictionary<PlayerBody, PlayerBody.EquipmentSlotClass> _liveSlots = new();
 
+        // per-body slot-change handler so we can unsubscribe on re-Init.
+        // without unsubscribe the slot accumulates a handler per Init and
+        // every transition fires N times.
+        private static readonly Dictionary<PlayerBody, System.Action<Item>> _slotChangeHandlers = new();
+
         // bodies where the next OnSlotViewChanged (fired by method_4 after
         // the async prefab load) should be swallowed - that event drives
         // UI subscribers and triggered the per-frame reflow we tried to
@@ -103,6 +108,11 @@ namespace BeltSlot.Patches
                 }
                 _liveSlots.Remove(b);
             }
+            // mirror cleanup for the handler dict so dead bodies don't
+            // pile up there either. handler refs become GC-eligible once
+            // the slot itself goes away.
+            var staleHandlers = _slotChangeHandlers.Keys.Where(b => b == null).ToList();
+            foreach (var b in staleHandlers) _slotChangeHandlers.Remove(b);
 
             var pocketsItem = equipment.GetSlot(EquipmentSlot.Pockets)?.ContainedItem as CompoundItem;
             if (pocketsItem == null) return;
@@ -131,32 +141,53 @@ namespace BeltSlot.Patches
                 try { prev.Dispose(); } catch { /* best effort */ }
                 _liveSlots.Remove(body);
             }
-
-            if (slot.ContainedItem != null)
+            // and unsubscribe any prior handler on this body so we don't
+            // double-fire on subsequent slot changes.
+            if (_slotChangeHandlers.TryGetValue(body, out var oldHandler))
             {
-                MountNow(body, slot, bone);
-                return;
+                try { slot.OnAddOrRemoveItem -= oldHandler; } catch { /* best effort */ }
+                _slotChangeHandlers.Remove(body);
             }
 
-            // empty slot at init (common on Time Has Come where the body
-            // is built before equipment resolves). subscribe and mount
-            // when the item arrives.
+            // single persistent handler covers every transition:
+            //   empty -> filled  : mount (handles deferred-fill case)
+            //   filled -> empty  : dispose so the visual disappears when
+            //                      the belt is looted off a corpse
+            //   filled -> filled : skipped via _liveSlots guard
+            // binding was released at mount time, so Dispose's only
+            // visible side-effect is DestroyCurrentModel.
+            //
+            // Slot fires OnAddOrRemoveItem with the AFFECTED item on both
+            // add and remove (Slot.cs RemoveItemInternal passes
+            // containedItem AFTER nulling ContainedItem), so the handler
+            // param doesnt tell us the new state - read slot.ContainedItem.
             System.Action<Item> handler = null;
-            handler = (Item item) =>
+            handler = (Item _) =>
             {
                 if (body == null)
                 {
                     slot.OnAddOrRemoveItem -= handler;
+                    _slotChangeHandlers.Remove(body);
                     return;
                 }
-                if (item == null) return;
-                slot.OnAddOrRemoveItem -= handler;
+                if (slot.ContainedItem == null)
+                {
+                    if (_liveSlots.TryGetValue(body, out var sc))
+                    {
+                        try { sc.Dispose(); } catch { /* best effort */ }
+                        _liveSlots.Remove(body);
+                    }
+                    return;
+                }
                 if (_liveSlots.ContainsKey(body)) return;
                 try { MountNow(body, slot, bone); }
-                catch (System.Exception ex) { Plugin.Instance?.Log?.LogError($"[Belt Slots] deferred mount failed: {ex}"); }
+                catch (System.Exception ex) { Plugin.Instance?.Log?.LogError($"[Belt Slots] add-handler mount failed: {ex}"); }
             };
             slot.OnAddOrRemoveItem += handler;
-            Plugin.Instance?.Log?.LogInfo("[Belt Slots] holder slot empty at init; subscribed for later mount");
+            _slotChangeHandlers[body] = handler;
+
+            if (slot.ContainedItem != null)
+                MountNow(body, slot, bone);
         }
 
         private static void MountNow(PlayerBody body, Slot slot, Transform bone)
