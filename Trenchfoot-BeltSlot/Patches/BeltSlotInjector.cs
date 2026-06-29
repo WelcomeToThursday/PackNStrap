@@ -56,7 +56,14 @@ namespace BeltSlot.Patches
                 slotView.Show(beltSlot, parentContext, inventoryController, ItemUiContext.Instance, skills, insurance, !inRaid);
                 SetHeaderText(slotView, "BELT");
                 PositionRelativeToPockets(slotView.transform, container);
-                BindHeightCapper(slotView, beltSlot);
+                // capper removed - couldnt find a LayoutElement
+                // configuration that shrunk the empty slot without
+                // breaking vanilla's filled-state sizing on subsequent
+                // empty<->filled cycles. accepting the empty-slot gap
+                // as the price of stable filled-state layout.
+                // StripCapperRemnants clears any LayoutElement left
+                // over from prior dll versions.
+                StripCapperRemnants(slotView);
 
                 // corpse loot only: apply user spacer + offset. detect via
                 // reference compare since corpse loot passes the bot's
@@ -144,11 +151,25 @@ namespace BeltSlot.Patches
         // per ContainersPanel.Show, so if the slot filled mid-session the
         // cap stayed at the empty height and the grids overflowed into
         // pockets. capper subscribes to OnAddOrRemoveItem and updates.
-        private static void BindHeightCapper(SlotView slotView, Slot slot)
+        // cleans up the capper and any LayoutElement we added to the
+        // SlotView in prior sessions. NOT a no-op: stale state from
+        // previous dll versions would otherwise persist across the
+        // session that drops the capper. only removes the capper's
+        // own LayoutElements - leaves any vanilla template
+        // LayoutElement alone.
+        private static void StripCapperRemnants(SlotView slotView)
         {
             var capper = slotView.GetComponent<BeltSlotLayoutCapper>();
-            if (capper == null) capper = slotView.gameObject.AddComponent<BeltSlotLayoutCapper>();
-            capper.Bind(slot);
+            if (capper != null) UnityEngine.Object.DestroyImmediate(capper);
+            // walk all LayoutElements in case prior versions left an
+            // extra one with custom priority. only kill the highest-
+            // priority one (ours), spare priority<=1 (templates).
+            var elements = slotView.GetComponents<UnityEngine.UI.LayoutElement>();
+            foreach (var le in elements)
+            {
+                if (le != null && le.layoutPriority >= 2)
+                    UnityEngine.Object.DestroyImmediate(le);
+            }
         }
 
         // pockets gets a spacer (sibling LayoutElement) instead of a
