@@ -31,7 +31,7 @@ namespace PackNStrap
         internal void Awake()
         {
             Instance = this;
-            CustomTemplateIdToObjectService.AddNewTemplateIdToObjectMapping(NewTemplateIdToObjectIdClass.CustomMappings);
+            //CustomTemplateIdToObjectService.AddNewTemplateIdToObjectMapping(NewTemplateIdToObjectIdClass.CustomMappings);
             new GetPrioritizedGridsForUnloadedObjectPatch().Enable();
             new MergeContainerWithChildrenPatch().Enable();
             new UnloadWeaponPatch().Enable();

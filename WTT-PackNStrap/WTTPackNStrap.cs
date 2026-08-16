@@ -52,10 +52,10 @@ public class WTTPackNStrap(
         _itemsDb = databaseService.GetItems();
         _traderDb = databaseService.GetTraders();
 
-        CreateCustomItemsAndTemplates();
-        ConfigureCustomItemsToTraders();
-        AddToInventorySlots();
-        
+        //CreateCustomItemsAndTemplates();
+        //ConfigureCustomItemsToTraders();
+        //AddToInventorySlots();
+        await wttCommon.CustomItemParentService.CreateCustomParents(_assembly);
         await wttCommon.CustomItemServiceExtended.CreateCustomItems(_assembly);
         wttCommon.CustomRigLayoutService.CreateRigLayouts(_assembly);
         await wttCommon.CustomLocaleService.CreateCustomLocales(_assembly);

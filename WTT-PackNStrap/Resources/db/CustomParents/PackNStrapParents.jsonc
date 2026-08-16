@@ -1,0 +1,70 @@
+{
+  "680fce2ec7b9b222270f074c": {
+    "_id": "680fce2ec7b9b222270f074c",
+    "_name": "CustomContainerTemplate",
+    "_parent": "566162e44bdc2d3f298b4573",
+    "_type": "Node",
+
+    "_props": {
+    },
+
+    "addToContainerFilters": false,
+
+    "containers": [
+    ]
+  },
+  "680fd1dae5044e670a092e16": {
+    "_id": "680fd1dae5044e670a092e16",
+    "_name": "CustomContainerItem",
+    "_parent": "680fce2ec7b9b222270f074c",
+    "_type": "Node",
+
+    "_props": {
+    },
+    "addToTraderBuyLists": true,
+    "traders": [ "therapist" ],
+
+    "addToContainerFilters": true,
+
+    "containers": [
+      "59fb042886f7746c5005a7b2", // item case
+      "5c0a840b86f7742ffa4f2482" // t h i c c item case
+    ]
+  },
+  "68154651f849fb4e7d816738": {
+    "_id": "68154651f849fb4e7d816738",
+    "_name": "CustomSecureContainerItem",
+    "_parent": "680fce2ec7b9b222270f074c",
+    "_type": "Node",
+
+    "_props": {
+    },
+    "addToTraderBuyLists": true,
+    "traders": [ "therapist" ],
+    "addToInventorySlots": true,
+    "inventorySlots": [ "SecuredContainer" ],
+    "addToContainerFilters": false,
+
+    "containers": [
+    ]
+  },
+  "6815465859b8c6ff13f94026": {
+    "_id": "6815465859b8c6ff13f94026",
+    "_name": "CustomBeltItem",
+    "_parent": "680fce2ec7b9b222270f074c",
+    "_type": "Node",
+
+    "_props": {
+    },
+    "addToTraderBuyLists": true,
+    "traders": [ "ragman" ],
+    "addToInventorySlots": true,
+    "inventorySlots": [ "ArmBand" ],
+    "addToContainerFilters": true,
+
+    "containers": [
+      "CONTAINER_ITEM_CASE", // item case
+      "5c0a840b86f7742ffa4f2482" // t h i c c item case
+    ]
+  }
+}

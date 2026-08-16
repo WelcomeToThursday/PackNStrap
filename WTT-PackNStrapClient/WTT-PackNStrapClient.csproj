@@ -68,6 +68,9 @@
 		<Reference Include="UnityEngine.CoreModule">
 		  <HintPath>..\..\..\EscapeFromTarkov_Data\Managed\UnityEngine.CoreModule.dll</HintPath>
 		</Reference>
+		<Reference Include="WTT-ClientCommonLib">
+		  <HintPath>..\..\WTT-CommonLib\Build\BepInEx\plugins\WTT-ClientCommonLib\WTT-ClientCommonLib.dll</HintPath>
+		</Reference>
 	</ItemGroup>
 
 	<ItemGroup>
@@ -83,10 +86,6 @@
 			<Generator>SettingsSingleFileGenerator</Generator>
 			<LastGenOutput>Settings.Designer.cs</LastGenOutput>
 		</None>
-	</ItemGroup>
-
-	<ItemGroup>
-	  <PackageReference Include="WTT-ClientCommonLib" Version="2.0.0" />
 	</ItemGroup>
 
 	<Target Name="PostBuild" AfterTargets="PostBuildEvent">
