@@ -201,6 +201,14 @@
             ]
         },
         {
+            "key": "Item_Containers/container_plates.bundle",
+            "dependencyKeys": [
+                "shaders",
+                "cubemaps",
+                "assets/commonassets/physics/physicsmaterials.bundle"
+            ]
+        },
+        {
             "key": "Item_Containers/container_cashbox.bundle",
             "dependencyKeys": [
                 "shaders",

@@ -2239,5 +2239,159 @@
       }
     },
     "staticLootContainers": []
+  },
+  "6a3c0e9643138b61c8739586": {
+    "itemTplToClone": "67600929bd0a0549d70993f6",
+    "parentId": "5795f317245977243854e041",
+    "handbookParentId": "5b5f6fa186f77409407a7eb7",
+    "overrideProperties": {
+      "Prefab": {
+        "path": "Items/Item_Containers/container_plates.bundle",
+        "rcid": ""
+      },
+      "ExaminedByDefault": true,
+      "Weight": 1.05,
+      "Width": 3,
+      "Height": 2,
+      "Grids": [
+        {
+          "_id": "273d0562c601fa002beefa25",
+          "_name": "GridView (1)",
+          "_parent": "6a3c0e9643138b61c8739586",
+          "_props": {
+            "cellsH": 2,
+            "cellsV": 2,
+            "filters": [
+              {
+                "ExcludedFilter": [
+                  "5448bf274bdc2dfc2f8b456a"
+                ],
+                "Filter": [
+                  "644120aa86ffbe10ee032b6f"
+                ]
+              }
+            ],
+            "isSortingTable": false,
+            "maxCount": 0,
+            "maxWeight": 0,
+            "minCount": 0
+          },
+          "_proto": "55d329c24bdc2d892f8b4567"
+        },
+        {
+          "_id": "0f3328ff56c0d6281e5933f4",
+          "_name": "GridView (2)",
+          "_parent": "6a3c0e9643138b61c8739586",
+          "_props": {
+            "cellsH": 2,
+            "cellsV": 2,
+            "filters": [
+              {
+                "ExcludedFilter": [
+                  "5448bf274bdc2dfc2f8b456a"
+                ],
+                "Filter": [
+                  "644120aa86ffbe10ee032b6f"
+                ]
+              }
+            ],
+            "isSortingTable": false,
+            "maxCount": 0,
+            "maxWeight": 0,
+            "minCount": 0
+          },
+          "_proto": "55d329c24bdc2d892f8b4567"
+        },
+        {
+          "_id": "4377cb5bdd51fde8f7ed0854",
+          "_name": "GridView (3)",
+          "_parent": "6a3c0e9643138b61c8739586",
+          "_props": {
+            "cellsH": 2,
+            "cellsV": 2,
+            "filters": [
+              {
+                "ExcludedFilter": [
+                  "5448bf274bdc2dfc2f8b456a"
+                ],
+                "Filter": [
+                  "644120aa86ffbe10ee032b6f"
+                ]
+              }
+            ],
+            "isSortingTable": false,
+            "maxCount": 0,
+            "maxWeight": 0,
+            "minCount": 0
+          },
+          "_proto": "55d329c24bdc2d892f8b4567"
+        },
+        {
+          "_id": "a97636347c3bbc78b1096eb9",
+          "_name": "GridView (4)",
+          "_parent": "6a3c0e9643138b61c8739586",
+          "_props": {
+            "cellsH": 2,
+            "cellsV": 2,
+            "filters": [
+              {
+                "ExcludedFilter": [
+                  "5448bf274bdc2dfc2f8b456a"
+                ],
+                "Filter": [
+                  "644120aa86ffbe10ee032b6f"
+                ]
+              }
+            ],
+            "isSortingTable": false,
+            "maxCount": 0,
+            "maxWeight": 0,
+            "minCount": 0
+          },
+          "_proto": "55d329c24bdc2d892f8b4567"
+        }
+      ]
+    },
+    "locales": {
+      "en": {
+        "name": "Small ballistic plate case",
+        "shortName": "Plates",
+        "description": "A small carrying case that can hold several ballistic plates."
+      }
+    },
+    "addtoInventorySlots": [],
+    "addtoModSlots": false,
+    "modSlot": [],
+    "fleaPriceRoubles": 133122,
+    "handbookPriceRoubles": 120105,
+    "addtoTraders": false,
+    "addtoBots": false,
+    "addtoStaticLootContainers": false,
+    "staticLootContainers": [],
+    "masteries": false,
+    "addWeaponPreset": false,
+    "weaponPresets": [],
+      "traders": {
+        "MECHANIC": {
+          "681d20b3c31f91471de9cc41": {
+            "barterSettings": {
+              "loyalLevel": 1,
+              "unlimitedCount": true,
+              "stackObjectsCount": 99
+            },
+            "barters": [
+              {
+                "count": 1,
+                "_tpl": "590c2e1186f77425357b6124"
+            },
+            {
+                "count": 1,
+                "_tpl": "59e35de086f7741778269d84"
+            }
+            ]
+          }
+        }
+    },
+    "masterySections": []
   }
 }
