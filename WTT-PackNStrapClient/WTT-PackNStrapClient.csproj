@@ -2,7 +2,7 @@
 
 	<PropertyGroup>
 		<AssemblyName>WTT-PackNStrap</AssemblyName>
-		<Description>WTT PackNStrap custom rig loader</Description>
+		<Description>WTT PackNStrap</Description>
 		<Version>2.0.5</Version>
 		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 		<LangVersion>latest</LangVersion>
