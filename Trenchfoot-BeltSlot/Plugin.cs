@@ -1,6 +1,5 @@
-﻿using System;
-using System.Linq;
-using System.Reflection;
+﻿using BeltSlot.Helpers;
+using BeltSlot.Patches;
 using BepInEx;
 using BepInEx.Bootstrap;
 using BepInEx.Logging;
@@ -9,14 +8,17 @@ using EFT;
 using EFT.InventoryLogic;
 using EFT.UI;
 using EFT.UI.Screens;
+using System;
+using System.Linq;
+using System.Reflection;
 using UnityEngine;
-
-using BeltSlot.Helpers;
-using BeltSlot.Patches;
 
 namespace BeltSlot;
 
-[BepInPlugin("com.trenchfoot.beltslot", "Trenchfoot-BeltSlot", "2.0.4")]
+[BepInPlugin(
+    PluginConstants.Guid,
+    PluginConstants.Name,
+    PluginConstants.Version)]
 [BepInDependency("com.wtt.packnstrap")]
 public sealed class Plugin : BaseUnityPlugin
 {

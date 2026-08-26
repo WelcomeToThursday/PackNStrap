@@ -15,7 +15,10 @@ using WTTClientCommonLib.Services;
 
 namespace PackNStrap
 {
-    [BepInPlugin("com.wtt.packnstrap", "WTT-PackNStrap", "2.0.5")]
+    [BepInPlugin(
+    PluginConstants.Guid,
+    PluginConstants.Name,
+    PluginConstants.Version)]
 
     internal class PackNStrap : BaseUnityPlugin
     {
