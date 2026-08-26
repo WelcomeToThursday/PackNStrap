@@ -9,7 +9,7 @@ namespace BeltSlot.Patches
     {
         protected override MethodBase GetTargetMethod()
         {
-            return AccessTools.Method(typeof(EquipmentBuildsScreen), nameof(EquipmentBuildsScreen.method_6));
+            return AccessTools.Method(typeof(EquipmentBuildsScreen), nameof(EquipmentBuildsScreen.SelectBuildHandler));
         }
         [PatchPostfix]
         static void Postfix(EquipmentBuildsScreen __instance)

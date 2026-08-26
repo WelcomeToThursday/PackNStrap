@@ -11,8 +11,8 @@ namespace PackNStrap.Patches
         protected override MethodBase GetTargetMethod()
         {
             return AccessTools.Method(
-                typeof(GClass3373), 
-                nameof(GClass3373.FindSlotToPickUp),
+                typeof(InventoryExtension), 
+                nameof(InventoryExtension.FindSlotToPickUp),
                 new[] { typeof(InventoryEquipment), typeof(Item) }
             );
         }
@@ -20,7 +20,6 @@ namespace PackNStrap.Patches
         [PatchPostfix]
         public static void Postfix(
             ref ItemAddress __result,
-            GClass3373 __instance,
             InventoryEquipment equipment,
             Item item)
         {
@@ -29,7 +28,7 @@ namespace PackNStrap.Patches
                 return;
             }
 
-            foreach (var slot in GClass3373.EquipmentSlot_8) // ArmBand slots
+            foreach (var slot in InventoryExtension.equipmentSlot_8) // ArmBand slots
             {
                 var equipmentSlot = equipment.GetSlot(slot);
                 if (equipmentSlot.Deleted || !equipmentSlot.CheckCompatibility(item))

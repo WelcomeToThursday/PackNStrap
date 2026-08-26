@@ -1,15 +1,18 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Reflection;
-using System.Threading.Tasks;
+﻿using Diz.LanguageExtensions;
+using Diz.Utils;
+using EFT;
 using EFT.Communications;
 using EFT.InventoryLogic;
 using EFT.UI;
 using HarmonyLib;
 using PackNStrap.Core.Items;
-using SPT.Reflection.Patching;
 using PackNStrap.Helpers;
+using SPT.Reflection.Patching;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
+using System.Threading.Tasks;
 
 namespace PackNStrap.Patches;
 
@@ -23,7 +26,7 @@ internal class UnloadWeaponPatch : ModulePatch
     [PatchPrefix]
     public static bool UnloadWeaponPrefix(ItemUiContext __instance, ref Weapon weapon, ref Task __result)
     {
-        if (!GClass2340.InRaid)
+        if (!InGameStatus.InRaid)
         {
             return true;
         }
@@ -33,7 +36,6 @@ internal class UnloadWeaponPatch : ModulePatch
         #endif
         try
         {
-            // Set the result to the Task returned by CustomUnloadWeapon
             __result = CustomUnloadWeapon(__instance, weapon);
             return false;
         }
@@ -46,36 +48,36 @@ internal class UnloadWeaponPatch : ModulePatch
 
     private static async Task CustomUnloadWeapon(ItemUiContext __instance, Weapon weapon)
     {
-        TraderControllerClass traderControllerClass = (TraderControllerClass)
+        ItemController _itemController = (ItemController)
             AccessTools.Field(typeof(ItemUiContext),
-                    "traderControllerClass")
+                    "_itemController")
                 .GetValue(__instance);
-        CompoundItem[] compoundItem_0 = (CompoundItem[])
+        CompoundItem[] _rightPanelItem = (CompoundItem[])
             AccessTools.Field(typeof(ItemUiContext),
-                    "compoundItem_0")
+                    "_rightPanelItem")
                 .GetValue(__instance);
         if (!weapon.IsUnderBarrelDeviceActive)
         {
-            MagazineItemClass currentMagazine = weapon.GetCurrentMagazine();
+            Magazine currentMagazine = weapon.GetCurrentMagazine();
             if (currentMagazine != null)
             {
-                if (!__instance.method_16(weapon))
+                if (!__instance.TryExamineMalfunction(weapon))
                 {
                     var inventoryEquipment = (InventoryEquipment)
                         AccessTools.Field(typeof(ItemUiContext),
                                 "inventoryEquipment_0")
                             .GetValue(__instance);
                     bool flag;
-                    if (!(flag = inventoryEquipment.Contains(currentMagazine)) && compoundItem_0 == null)
+                    if (!(flag = inventoryEquipment.Contains(currentMagazine)) && _rightPanelItem == null)
                     {
                         UnityEngine.Debug.LogError("Something went wrong. Right panel is null while mag is not from equipment.");
                     }
                     else
                     {
                         IEnumerable<CompoundItem> enumerable;
-                        if (compoundItem_0 != null)
+                        if (_rightPanelItem != null)
                         {
-                            enumerable = (flag ? inventoryEquipment.ToEnumerable().Concat(compoundItem_0) : compoundItem_0.Concat(inventoryEquipment.ToEnumerable()));
+                            enumerable = (flag ? inventoryEquipment.ToEnumerable().Concat(_rightPanelItem) : _rightPanelItem.Concat(inventoryEquipment.ToEnumerable()));
                         }
                         else
                         {
@@ -88,7 +90,6 @@ internal class UnloadWeaponPatch : ModulePatch
                         LogContainers(enumerable);
 #endif
 
-                        // MagDumpPouch logic
                         List<CustomContainerItemClass> magDumpPouches = Common.GetMagDumpPouches(inventoryEquipment, false);
                 
 #if DEBUG
@@ -109,21 +110,21 @@ internal class UnloadWeaponPatch : ModulePatch
                         Console.WriteLine("[AFTER] Final search order:");
                         LogContainers(enumerable3);
 #endif
-                        GStruct154<GInterface424> gstruct = InteractionsHandlerClass.QuickFindAppropriatePlace(currentMagazine, traderControllerClass, enumerable3, InteractionsHandlerClass.EMoveItemOrder.PrioritizeTargetsOrder, true);
+                        OperationResult<IItemOperationResult> gstruct = ItemManipulator.QuickFindAppropriatePlace(currentMagazine, _itemController, enumerable3, ItemManipulator.EMoveItemOrder.PrioritizeTargetsOrder, true);
                         bool flag2;
                         if (flag2 = gstruct.Succeeded)
                         {
-                            flag2 = (await ItemUiContext.smethod_0(traderControllerClass, currentMagazine, gstruct)).Succeed;
+                            flag2 = (await ItemUiContext.RunWithSound(_itemController, currentMagazine, gstruct)).Succeed;
                         }
                         if (!flag2)
                         {
-                            if (!GClass2340.InRaid)
+                            if (!InGameStatus.InRaid)
                             {
-                                NotificationManagerClass.DisplayWarningNotification("Can't find a place for item".Localized());
+                                NotificationManager.DisplayWarningNotification("Can't find a place for item".Localized());
                             }
-                            else if (traderControllerClass.CanThrow(currentMagazine))
+                            else if (_itemController.CanThrow(currentMagazine))
                             {
-                                traderControllerClass.ThrowItem(currentMagazine, true);
+                                _itemController.ThrowItem(currentMagazine, true);
                             }
                         }
                     }

@@ -1,4 +1,5 @@
 ﻿using Comfort.Common;
+using EFT;
 using EFT.InventoryLogic;
 using EFT.UI;
 using EFT.UI.DragAndDrop;
@@ -19,7 +20,7 @@ namespace BeltSlot.Patches
         protected override MethodBase GetTargetMethod()
         {
             defaultSlotTemplate = AccessTools.Field(typeof(ContainersPanel), "_defaultSlotTemplate");
-            return AccessTools.Method(typeof(ContainersPanel), nameof(ContainersPanel.method_0));
+            return AccessTools.Method(typeof(ContainersPanel), nameof(ContainersPanel.InstantiateSlotView));
         }
 
         [PatchPrefix]
@@ -27,7 +28,7 @@ namespace BeltSlot.Patches
         {
             try
             {
-                if (Plugin.Instance.enableLogging)
+                if (Plugin.Instance.EnableLogging)
                 {
                     Plugin.Instance.Log.LogInfo($"[Belt Slots] ContainersPanelPatch.PreFix called");
                 }
@@ -39,7 +40,7 @@ namespace BeltSlot.Patches
                     {
                         __result = UnityEngine.Object.Instantiate<SlotView>(template);
 
-                        if (Plugin.Instance.enableLogging)
+                        if (Plugin.Instance.EnableLogging)
                         {
                             Plugin.Instance.Log.LogInfo($"[Belt Slots] default template for armband");
                         }
@@ -65,29 +66,29 @@ namespace BeltSlot.Patches
         [PatchPostfix]
         static void Postfix()
         {
-            if (Plugin.Instance.enableLogging)
+            if (Plugin.Instance.EnableLogging)
             {
                 Plugin.Instance.Log.LogInfo($"[Belt Slots] ContainersPanelPatch2.Postfix called");
             }
             //Plugin.Instance.armbandSlot = Plugin.Instance.inventoryEquipment.GetSlot(EquipmentSlot.ArmBand);
 
-            Plugin.Instance.isSavage = false;
+            Plugin.Instance.IsScav = false;
             Plugin.Instance.SetPlayerArmbandSlotOnOpen();
         }
     }
 
-    public class MainMenuControllerClassPatch : ModulePatch
+    public class MainMenuShowOperationPatch : ModulePatch
     {
         protected override MethodBase GetTargetMethod()
         {
-            return AccessTools.Method(typeof(MainMenuControllerClass), nameof(MainMenuControllerClass.method_48));
+            return AccessTools.Method(typeof(MainMenuShowOperation), nameof(MainMenuShowOperation.method_48));
         }
         [PatchPostfix]
         static void Postfix()
         {
-            if (Plugin.Instance.enableLogging)
+            if (Plugin.Instance.EnableLogging)
             {
-                Plugin.Instance.Log.LogInfo($"[Belt Slots] MainMenuControllerClassPatch.Postfix called");
+                Plugin.Instance.Log.LogInfo($"[Belt Slots] MainMenuShowOperationPatch.Postfix called");
             }
             Plugin.Instance.SetInsuranceArmbandSlot();
         }
@@ -103,11 +104,11 @@ namespace BeltSlot.Patches
         [PatchPostfix]
         static void Postfix(ComplexStashPanel __instance)
         {
-            if (Plugin.Instance.enableLogging)
+            if (Plugin.Instance.EnableLogging)
             {
                 Plugin.Instance.Log.LogInfo($"[Belt Slots] ComplexStashPanelPatch.Postfix called");
             }
-            Plugin.Instance.complexStashPanelLoaded = true;
+            Plugin.Instance.ComplexStashPanelLoaded = true;
             Plugin.Instance.SetLootArmbandSlotOnOpen();
         }
     }
@@ -121,11 +122,11 @@ namespace BeltSlot.Patches
         [PatchPostfix]
         static void Postfix(ComplexStashPanel __instance)
         {
-            if (Plugin.Instance.enableLogging)
+            if (Plugin.Instance.EnableLogging)
             {
                 Plugin.Instance.Log.LogInfo($"[Belt Slots] ComplexStashPanelPatch2.Postfix called");
             }
-            Plugin.Instance.complexStashPanelLoaded = false;
+            Plugin.Instance.ComplexStashPanelLoaded = false;
         }
     }
 
@@ -138,7 +139,7 @@ namespace BeltSlot.Patches
         [PatchPostfix]
         static void Postfix(ItemView __instance)
         {
-            if (Plugin.Instance.enableLogging)
+            if (Plugin.Instance.EnableLogging)
             {
                 Plugin.Instance.Log.LogInfo($"[Belt Slots] ItemViewPatch.Postfix called");
             }

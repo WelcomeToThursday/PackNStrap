@@ -14,37 +14,32 @@ internal class GetPrioritizedGridsForUnloadedObjectPatch : ModulePatch
 {
     protected override MethodBase GetTargetMethod()
     {
-        return AccessTools.Method(typeof(GClass3372), nameof(GClass3372.GetPrioritizedGridsForUnloadedObject));
+        return AccessTools.Method(typeof(InventoryEquipmentExtension), nameof(InventoryEquipmentExtension.GetPrioritizedGridsForUnloadedObject));
     }
 
     [PatchPrefix]
-    public static bool PatchPrefix(ref InventoryEquipment equipment, bool backpackIncluded, ref IEnumerable<StashGridClass> __result)
+    public static bool PatchPrefix(ref InventoryEquipment equipment, bool backpackIncluded, ref IEnumerable<Grid> __result)
     {
-        // Retrieve slots
         Slot tacticalVestSlot = equipment.GetSlot(EquipmentSlot.TacticalVest);
         Slot pocketsSlot = equipment.GetSlot(EquipmentSlot.Pockets);
         Slot backpackSlot = equipment.GetSlot(EquipmentSlot.Backpack);
         Slot armbandSlot = equipment.GetSlot(EquipmentSlot.ArmBand);
 
-        // Handle contained items
-        VestItemClass tacticalVestItem = tacticalVestSlot?.ContainedItem as VestItemClass;
-        PocketsItemClass pocketsItem = pocketsSlot?.ContainedItem as PocketsItemClass;
-        BackpackItemClass backpackItem = backpackSlot?.ContainedItem as BackpackItemClass;
+        Vest tacticalVestItem = tacticalVestSlot?.ContainedItem as Vest;
+        Pockets pocketsItem = pocketsSlot?.ContainedItem as Pockets;
+        Backpack backpackItem = backpackSlot?.ContainedItem as Backpack;
         CustomBeltItemClass armbandItem = armbandSlot?.ContainedItem as CustomBeltItemClass;
 
-        // Retrieve grids or empty arrays if items are null
-        StashGridClass[] tacticalVestGrids = tacticalVestItem?.Grids ?? Array.Empty<StashGridClass>();
-        StashGridClass[] pocketsGrids = pocketsItem?.Grids ?? Array.Empty<StashGridClass>();
-        StashGridClass[] backpackGrids = backpackItem?.Grids ?? Array.Empty<StashGridClass>();
-        StashGridClass[] armbandGrids = armbandItem?.Grids ?? Array.Empty<StashGridClass>();
+        Grid[] tacticalVestGrids = tacticalVestItem?.Grids ?? Array.Empty<Grid>();
+        Grid[] pocketsGrids = pocketsItem?.Grids ?? Array.Empty<Grid>();
+        Grid[] backpackGrids = backpackItem?.Grids ?? Array.Empty<Grid>();
+        Grid[] armbandGrids = armbandItem?.Grids ?? Array.Empty<Grid>();
 
-        // Find all instances of magDumpPouch
         List<CustomContainerItemClass> magDumpPouches = Common.GetMagDumpPouches(equipment, backpackIncluded);
 
-        // Retrieve grids for all found magDumpPouches that can accept items
-        List<StashGridClass> magDumpPouchGrids = magDumpPouches
-            .SelectMany(pouch => pouch.Grids ?? Array.Empty<StashGridClass>())
-            .Where(Common.CanAcceptItems) // Check if grid can accept items
+        List<Grid> magDumpPouchGrids = magDumpPouches
+            .SelectMany(pouch => pouch.Grids ?? Array.Empty<Grid>())
+            .Where(Common.CanAcceptItems)
             .ToList();
 
         if (magDumpPouchGrids.Count > 0)
@@ -52,13 +47,12 @@ internal class GetPrioritizedGridsForUnloadedObjectPatch : ModulePatch
 #if DEBUG
             Console.WriteLine("Returning only MagDumpPouch grids that can accept items.");
 #endif
-            __result = magDumpPouchGrids; // Return only MagDumpPouch grids if valid
+            __result = magDumpPouchGrids;
             return false;
         }
 #if DEBUG
         Console.WriteLine("No valid MagDumpPouch grids found.");
 #endif
-        // Fall back to returning other grids if no valid MagDumpPouch grids
         __result = backpackIncluded
             ? tacticalVestGrids.Concat(pocketsGrids).Concat(backpackGrids).Concat(armbandGrids)
             : tacticalVestGrids.Concat(pocketsGrids).Concat(armbandGrids);

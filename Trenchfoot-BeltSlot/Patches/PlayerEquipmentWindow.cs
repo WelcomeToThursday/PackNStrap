@@ -16,11 +16,11 @@ namespace BeltSlot.Patches
         [PatchPostfix]
         public static void Postfix(ItemUiContext __instance)
         {
-            if(Plugin.Instance.enableLogging)
+            if(Plugin.Instance.EnableLogging)
             {
                 Plugin.Instance.Log.LogInfo($"[Belt Slots] PlayerEquipmentWindowPatch.Postfix called");
             }
-            Plugin.Instance.isSavage = false;
+            Plugin.Instance.IsScav = false;
             Plugin.Instance.SetDeployArmbandSlot();
         }
     }

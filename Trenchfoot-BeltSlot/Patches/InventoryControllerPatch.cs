@@ -15,7 +15,7 @@ namespace BeltSlot.Patches
         [PatchPrefix]
         public static bool Prefix(InventoryController __instance, Inventory newInventory)
         {
-            TraderControllerClass baseType = __instance;
+            ItemController baseType = __instance;
 
             if (__instance.Inventory is not null)
             {

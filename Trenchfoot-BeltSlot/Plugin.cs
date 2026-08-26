@@ -1,561 +1,363 @@
-﻿using BeltSlot.Helpers;
-using BeltSlot.Patches;
+﻿using System;
+using System.Linq;
+using System.Reflection;
 using BepInEx;
 using BepInEx.Bootstrap;
 using BepInEx.Logging;
 using Comfort.Common;
+using EFT;
 using EFT.InventoryLogic;
 using EFT.UI;
 using EFT.UI.Screens;
-using System;
-using System.Linq;
-using System.Reflection;
 using UnityEngine;
-using UnityEngine.SceneManagement;
 
-namespace BeltSlot
+using BeltSlot.Helpers;
+using BeltSlot.Patches;
+
+namespace BeltSlot;
+
+[BepInPlugin("com.trenchfoot.beltslot", "Trenchfoot-BeltSlot", "2.0.4")]
+[BepInDependency("com.wtt.packnstrap")]
+public sealed class Plugin : BaseUnityPlugin
 {
-    [BepInPlugin("com.trenchfoot.beltslot", "Trenchfoot-BeltSlot", "2.0.4")]
-    [BepInDependency("com.SPT.core", "4.0.4")]
-    [BepInDependency("com.wtt.packnstrap", BepInDependency.DependencyFlags.SoftDependency)]
-    public class Plugin : BaseUnityPlugin
+    private static readonly EquipmentSlot[] SlotsAbovePockets =
     {
-        #region Variables
-        public bool enableLogging = false;
-        public bool packNStrapInstalled;
-        public bool iconToggle = true;
-        public bool inventoryScreenLoaded = false;
-        public bool complexStashPanelLoaded = false;
-        public bool isSavage = false;
-        private string playerID = "0000000000";
-        public string? itemId = "0000000000";
-        public string? raidItemId = "0000000000";
-        public Item? itemToTest;
-        public Item? raidItemToTest;
-        public Slot playerArmbandSlot;
-        public Slot lootArmbandSlot;
-        public InventoryEquipment inventoryEquipment;
-        public InventoryScreen inventoryScreen;
-        public CommonUI commonUI;
-        public CurrentScreenSingletonClass currentScreenSingletonClass = null;
-        internal static Plugin Instance { get; set; }
-        internal ManualLogSource Log { get; set; }
-        private static UI_Mappings uiMappings;
-        internal static UI_Mappings UiMappings { get => uiMappings; set => uiMappings = value; }
-        #endregion
+        EquipmentSlot.TacticalVest,
+        EquipmentSlot.ArmBand,
+        EquipmentSlot.Pockets,
+        EquipmentSlot.Backpack,
+        EquipmentSlot.SecuredContainer,
+        EquipmentSlot.Dogtag
+    };
 
-        #region Test Methods
-        // Check if the inventory screen is focused, if so, return true
-        private bool isInventoryScreenFocus()
-        {
-            var inventoryScreen = Singleton<CommonUI>.Instance.InventoryScreen;
-            if (inventoryScreen.isActiveAndEnabled)
-            {
-                if (enableLogging)
-                {
-                    Log.LogInfo("Inventory screen is focused.");
-                }
-                return true;
-            }
-            return false;
-        }
-        // Checks if the scav loot transfer screen is open
-        private bool isScavengerInventoryScreenFocus()
-        {
-            var scavInventoryScreen = Singleton<CommonUI>.Instance.ScavengerInventoryScreen;
-            if (scavInventoryScreen.isActiveAndEnabled)
-            {
-                if ((getCurrentScene() == "EmptyScene"))
-                {
-                    if ((getCurrentScreen() == EEftScreenType.ScavInventory))
-                    {
-                        return true;
-                    }
-                    return false;
-                }
-                return false;
-            }
-            return false;
-        }
-        // Test the ArmBand slot, if it has an item, return true, otherwise return false
-        private bool TestSlotHasItem(Slot _slot)
-        {
-            if (inventoryEquipment != null)
-            {
-                Slot slot = _slot;
-                if (slot.Items.IsNullOrEmpty())
-                {
-                    itemId = "0000000000"; // Reset the item ID
-                    if (enableLogging)
-                    {
-                        Log.LogInfo("No item in ArmBand slot");
-                    }
-                    return false;
-                }
-                else
-                {
-                    Item item = slot.ContainedItem;
-                    itemId = item.Id;
-                    if (enableLogging)
-                    {
-                        Log.LogInfo("Item in ArmBand slot: " + item.Id);
-                    }
-                    return true;
-                }
-            }
-            Log.LogError("InventoryEquipment is null, cannot check ArmBand slot");
-            return false;
-        }
-        // Test the ArmBand slot, if it has a compound item, return true, otherwise return false
-        private bool TestItemIsCompound(Slot _slot)
-        {
-            if (inventoryEquipment != null)
-            {
-                //Slot slot = inventoryEquipment.GetSlot(EquipmentSlot.ArmBand);
-                Slot slot = _slot;
-                Item item = slot.ContainedItem;
-                if (!item.IsContainer)
-                {
-                    if (enableLogging)
-                    {
-                        Log.LogInfo("Item in ArmBand slot is not a compound item: " + item.Id);
-                    }
-                    return false;
-                }
-                else
-                {
-                    if (enableLogging)
-                    {
-                        Log.LogInfo("Item in ArmBand slot is a compound item: " + item.Id);
-                    }
-                    return true;
-                }
-            }
-            return false;
-        }
-        // Test the item in the ArmBand slot, if it has changed, return true, otherwise return false
-        private bool TestItemChanged(String? item, Slot _slot)
-        {
-            string? itemTest = item;
-            Slot slot = _slot;
-            string owner1 = playerID; // Player ID
-            string owner2 = slot.ParentItem.Id; // Check if initiator is corpse or player
+    private static readonly EquipmentSlot[] SlotsBelowPockets =
+    {
+        EquipmentSlot.TacticalVest,
+        EquipmentSlot.Pockets,
+        EquipmentSlot.ArmBand,
+        EquipmentSlot.Backpack,
+        EquipmentSlot.SecuredContainer,
+        EquipmentSlot.Dogtag
+    };
 
-            if(enableLogging)
-            {
-                Log.LogInfo("Owner1: " + owner1);
-                Log.LogInfo("Owner2: " + owner2);
-            }
-            if(owner1 == owner2)
-            {
-                if (itemTest != slot.ContainedItem.Id)
-                {
-                    if (enableLogging)
-                    {
-                        Log.LogInfo("Item in ArmBand slot has changed, updating itemToTest");
-                    }
-                    itemToTest = slot.ContainedItem;
-                    itemId = slot.ContainedItem.Id;
-                    return true;
-                }
-                return false;
-            }
-            else
-            {
-                if (itemTest != slot.ContainedItem.Id)
-                    {
-                    if (enableLogging)
-                    {
-                        Log.LogInfo("Item in ArmBand slot has changed, updating itemToTest");
-                    }
-                    raidItemToTest = slot.ContainedItem;
-                    raidItemId = slot.ContainedItem.Id;
-                    return true;
-                }
-                return false;
-            }
-        }
-        // Check if the current scene is a raid scene, if so, return true, otherwise return false
-        private bool testInRaidScene()
+    internal static Plugin Instance { get; private set; } = null!;
+    internal static UI_Mappings UiMappings { get; private set; } = null!;
+    internal ManualLogSource Log { get; private set; } = null!;
+
+    public bool EnableLogging { get; set; }
+    public bool IconToggle { get; set; } = true;
+
+    public bool InventoryScreenLoaded { get; set; }
+    public bool ComplexStashPanelLoaded { get; set; }
+    public bool IsScav { get; set; }
+
+    public Slot? PlayerArmbandSlot { get; private set; }
+    public Slot? LootArmbandSlot { get; private set; }
+
+    public InventoryEquipment InventoryEquipment;
+    public InventoryScreen InventoryScreen;
+
+    private string? _playerArmbandItemId;
+    private string? _lootArmbandItemId;
+    private string? _scavTransferArmbandItemId;
+
+    private void Awake()
+    {
+        Instance = this;
+        Log = Logger;
+
+        Settings.Init(Config);
+        UiMappings = new UI_Mappings();
+        ConfigureEquipmentSlotOrder();
+        EnablePatches();
+    }
+
+    private void EnablePatches()
+    {
+        new ContainersPanelPatch().Enable();
+        new ContainersPanelPatch2().Enable();
+        new ComplexStashPanelPatch().Enable();
+        new ComplexStashPanelPatch2().Enable();
+        new MainMenuShowOperationPatch().Enable();
+        new ItemUiContextPatch().Enable();
+        new EquipmentBuildsScreenPatch().Enable();
+        new InventoryEquipmentPatch().Enable();
+        new InventoryScreenPatch().Enable();
+        new ItemViewPatch().Enable();
+        new GetPrioritizedContainersPackNStrapPatch().Enable();
+    }
+
+    private void ConfigureEquipmentSlotOrder()
+    {
+        var slots = Settings.BeltSlotLocation.Value switch
         {
-            string _currentScene = getCurrentScene();
-            switch (_currentScene)
-            {
-                case "Factory_Rework_Day_Scripts":
-                case "Factory_Rework_Night_Scripts":
-                case "Sandbox_Scripts":
-                case "City_Scripts":
-                case "Shopping_Mall_Scripts":
-                case "custom_Scripts":
-                case "woods_Scripts":
-                case "Reserve_Base_Scripts":
-                case "Lighthouse_Scripts":
-                case "shoreline_scripts":
-                case "Laboratory_Scripts":
-                    return true;
-                default: 
-                    return false;
-            }
-        }
-        // Check if the game is ready to be played, if so, return true, otherwise return false
-        private bool testGameReady()
-        {
-            if (!Singleton<CommonUI>.Instantiated)
-            {
-                return false;
-            }
-            if (!Singleton<PreloaderUI>.Instantiated)
-            {
-                return false;
-            }
-            if (!inventoryScreenLoaded)
-            {
-                return false;
-            }
-            return true;
-        }
-        // Check current scene
-        private string getCurrentScene()
-        {
-            string _currentScene = SceneManager.GetActiveScene().name;
-            if (_currentScene == null || _currentScene == string.Empty)
-            {
-                if (enableLogging)
-                {
-                    Log.LogInfo("Current scene is null or empty");
-                }
-                return "Unknown";
-            }
-
-            if (enableLogging)
-            {
-                Log.LogInfo($"Current scene: {_currentScene}");
-            }
-
-            return _currentScene;
-        }
-        // Check current screen type, kept for testing purposes
-        private EEftScreenType getCurrentScreen()
-        {
-            if (currentScreenSingletonClass == null)
-            {
-                currentScreenSingletonClass = CurrentScreenSingletonClass.Instance;
-            }
-
-            EEftScreenType _eScreenType = currentScreenSingletonClass.CurrentScreenController.ScreenType;
-
-            if (_eScreenType == null)
-            {
-                if (enableLogging)
-                {
-                    Log.LogInfo("Current screen is null, return none");
-                }
-                return EEftScreenType.None;
-            }
-
-            if (enableLogging)
-            {
-                Log.LogInfo($"Current screen type: {_eScreenType}");
-            }
-            return _eScreenType;
-        }
-        #endregion
-
-        #region Belt Settings
-        private static EquipmentSlot[] aboveEquipmentSlots = new[]
-        {
-            EquipmentSlot.TacticalVest,
-            EquipmentSlot.ArmBand,
-            EquipmentSlot.Pockets,
-            EquipmentSlot.Backpack,
-            EquipmentSlot.SecuredContainer,
-            EquipmentSlot.Dogtag
+            BeltSlotLocationOption.AbovePockets => SlotsAbovePockets,
+            BeltSlotLocationOption.BelowPockets => SlotsBelowPockets,
+            _ => SlotsAbovePockets
         };
 
-        private static EquipmentSlot[] belowEquipmentSlots = new[]
-        {
-            EquipmentSlot.TacticalVest,
-            EquipmentSlot.Pockets,
-            EquipmentSlot.ArmBand,
-            EquipmentSlot.Backpack,
-            EquipmentSlot.SecuredContainer,
-            EquipmentSlot.Dogtag
-        };
+        var field = typeof(ContainersPanel).GetField(
+            "_slotNames",
+            BindingFlags.Static | BindingFlags.NonPublic);
 
-        void SetEquipmentSlots()
+        if (field == null)
         {
-            switch (Settings.BeltSlotLocation.Value)
-            {
-                case BeltSlotLocationOption.AbovePockets:
-                    // Set the equipment slots to the aboveEquipmentSlots array
-                    typeof(ContainersPanel)
-                        .GetField("equipmentSlot_0", BindingFlags.Static | BindingFlags.NonPublic)
-                        .SetValue(null, aboveEquipmentSlots);
-                    break;
-                case BeltSlotLocationOption.BelowPockets:
-                    // Set the equipment slots to the belowEquipmentSlots array
-                    typeof(ContainersPanel)
-                        .GetField("equipmentSlot_0", BindingFlags.Static | BindingFlags.NonPublic)
-                        .SetValue(null, belowEquipmentSlots);
-                    break;
-            }
-        }
-        #endregion
-
-        private void Awake()
-        {
-            packNStrapInstalled = Chainloader.PluginInfos.Keys.Contains("com.wtt.packnstrap");
-            Settings.Init(Config);
-            Instance = this;
-            Log = Logger;
-            UiMappings = new UI_Mappings();
-
-            SetEquipmentSlots();
-            new ContainersPanelPatch().Enable();
-            new ContainersPanelPatch2().Enable();
-            new ComplexStashPanelPatch().Enable();
-            new ComplexStashPanelPatch2().Enable();
-            new MainMenuControllerClassPatch().Enable();
-            new ItemUiContextPatch().Enable();
-            new EquipmentBuildsScreenPatch().Enable();
-            new InventoryEquipmentPatch().Enable();
-            new InventoryScreenPatch().Enable();
-            new ItemViewPatch().Enable();
-
-            // Enables the correct patch based on if PackNStrap is installed or not
-            if (packNStrapInstalled)
-            {
-                new GetPrioritizedContainersPatch().Disable();
-                new GetPrioritizedContainersPackNStrapPatch().Enable();
-            }
-            else
-            {
-                new GetPrioritizedContainersPackNStrapPatch().Disable();
-                new GetPrioritizedContainersPatch().Enable();
-            }
-        }
-        
-        #region Update Methods
-        // Updates the armband and belt slots dynamically when inventory is open and not in raid
-        public void UpdatePlayerArmBandSlot()
-        {
-            if (!testGameReady())
-            {
-                return;
-            }
-            if (isInventoryScreenFocus())
-            {
-                // Test if the player is a scav, if so, return
-                if (isSavage)
-                {
-                    return;
-                }
-                Slot _slot = playerArmbandSlot;
-                if (TestSlotHasItem(_slot))
-                {
-                    RefreshBeltSlot(_slot, uiMappings.armBandSlot, uiMappings.beltSlot);
-                    if (TestItemChanged(itemId, _slot))
-                    {
-                        Log.LogInfo("Item in ArmBand slot has changed, updating belt slot");
-                        RefreshBeltSlot(_slot, uiMappings.armBandSlot, uiMappings.beltSlot);
-                    }
-                    return;
-                }
-                return;
-            }
+            Log.LogError("Could not find ContainersPanel._slotNames. Belt slot ordering was not applied.");
             return;
         }
 
-        // Updates the corpse armband and belt slots dynamically when looting in raid
-        public void UpdateLootArmBandSlot()
+        field.SetValue(null, slots);
+    }
+
+    public void UpdatePlayerArmBandSlot()
+    {
+        if (!IsGameReady() || IsScav || !IsInventoryScreenOpen() || PlayerArmbandSlot == null)
         {
-            if (!testGameReady())
-            {
-                return;
-            }
-            if (!testInRaidScene())
-            {
-                return;
-            }
-            if (!complexStashPanelLoaded)
-            {
-                return;
-            }
-            if (isInventoryScreenFocus())
-            {
-                Slot _slot = lootArmbandSlot;
-                if (TestSlotHasItem(_slot))
-                {
-                    RefreshBeltSlot(_slot, uiMappings.lootArmBand, uiMappings.lootBeltSlot);
-                    if (TestItemChanged(raidItemId, _slot))
-                    {
-                        RefreshBeltSlot(_slot, uiMappings.lootArmBand, uiMappings.lootBeltSlot);
-                    }
-                    return;
-                }
-                return;
-            }
             return;
         }
 
-        // Updates the scav loot transfer screen
-        public void UpdateScavInventoryArmbandSlot()
+        RefreshIfChanged(
+            PlayerArmbandSlot,
+            UiMappings.armBandSlot,
+            UiMappings.beltSlot,
+            ref _playerArmbandItemId);
+    }
+
+    public void UpdateLootArmBandSlot()
+    {
+        if (!IsGameReady()
+            || !InGameStatus.InRaid
+            || !ComplexStashPanelLoaded
+            || !IsInventoryScreenOpen()
+            || LootArmbandSlot == null)
         {
-            // Dynamically checks if the player has a scav that can have an armband and belt slot,
-            // and updates the loot transfer screen accordingly
-            if (isSavage)
-            {
-                return;
-            }
-            if (!testGameReady())
-            {
-                return;
-            }
-            if (isScavengerInventoryScreenFocus())
-            {
-                Slot _slot = UiMappings.getScavLootTransferUI_Mappings();
-                if (_slot == null)
-                {
-                    isSavage = true;
-                    return;
-                }
-                if (TestSlotHasItem(_slot))
-                {
-                    RefreshBeltSlot(_slot, uiMappings.scavArmBandSlot, uiMappings.scavBeltSlot);
-                    if (TestItemChanged(itemId, _slot))
-                    {
-                        Log.LogInfo("Item in ArmBand slot has changed, updating belt slot");
-                        RefreshBeltSlot(_slot, uiMappings.scavArmBandSlot, uiMappings.scavBeltSlot);
-                    }
-                    return;
-                }
-                return;
-            }
             return;
         }
-        #endregion
 
-        #region Inventory Setting Methods
-        // Sets the armband and belt slots when the inventory is opened
-        public void SetPlayerArmbandSlotOnOpen()
+        RefreshIfChanged(
+            LootArmbandSlot,
+            UiMappings.lootArmBand,
+            UiMappings.lootBeltSlot,
+            ref _lootArmbandItemId);
+    }
+
+    public void UpdateScavInventoryArmbandSlot()
+    {
+        if (IsScav || !IsGameReady() || !IsScavengerTransferScreenOpen())
         {
-            if (isInventoryScreenFocus())
-            {
-                // Test if the player is a scav, if so, return
-                if (isSavage)
-                {
-                    return;
-                }
-                Slot _slot = UiMappings.getInventoryContainer_Mappings();
-                if (_slot == null)
-                {
-                    isSavage = true;
-                    return;
-                }
-                playerID = _slot.ParentItem.Id;
-                playerArmbandSlot = _slot;
-                if (TestSlotHasItem(_slot))
-                {
-                    RefreshBeltSlot(_slot, uiMappings.armBandSlot, uiMappings.beltSlot);
-                    itemToTest = _slot.ContainedItem;
-                    itemId = _slot.ContainedItem.Id;
-                }
-                else
-                {                     
-                    itemToTest = null; // Reset the item ID
-                    itemId = "0000000000"; // Reset the item ID
-                }
-            }
+            return;
         }
 
-        // Sets the corpse armband and belt slots when the looting screen is opened
-        public void SetLootArmbandSlotOnOpen()
+        var slot = UiMappings.getScavLootTransferUI_Mappings();
+        if (slot == null)
         {
-            if (isInventoryScreenFocus())
-            {
-                if(!complexStashPanelLoaded)
-                {
-                    return;
-                }
-                Slot _slot = UiMappings.getComplexLootUI_Mappings();
-                if (_slot == null)
-                {
-                    complexStashPanelLoaded = false;
-                    return;
-                }
-                lootArmbandSlot = _slot;
-                if (TestSlotHasItem(_slot))
-                {
-                    RefreshBeltSlot(_slot, uiMappings.lootArmBand, uiMappings.lootBeltSlot);
-                    raidItemToTest = _slot.ContainedItem;
-                    raidItemId = _slot.ContainedItem.Id;
-                }
-                else
-                {
-                    raidItemToTest = null; // Reset the item ID
-                    raidItemId = "0000000000"; // Reset the item ID
-                }
-            }
+            IsScav = true;
+            return;
         }
 
-        // Sets the armband and belt slots when the insurance screen is opened
-        public void SetInsuranceArmbandSlot()
+        RefreshIfChanged(
+            slot,
+            UiMappings.scavArmBandSlot,
+            UiMappings.scavBeltSlot,
+            ref _scavTransferArmbandItemId);
+    }
+
+    public void SetPlayerArmbandSlotOnOpen()
+    {
+        if (IsScav || !IsInventoryScreenOpen())
         {
-            Slot _slot = UiMappings.getInsuranceScreen_Mappings();
-            if (!TestSlotHasItem(_slot))
-            {
-                return;
-            }
-            RefreshBeltSlot(_slot, uiMappings.insuranceArmBand, uiMappings.insuranceBelt);
+            return;
         }
 
-        // Sets the armband and belt slots when the builds screen is opened
-        public void SetBuildsArmbandSlot()
+        var slot = UiMappings.getInventoryContainer_Mappings();
+        if (slot == null)
         {
-            Slot _slot = UiMappings.getBuildPanel_Mappings();
-            if (!TestSlotHasItem(_slot))
-            {
-                return;
-            }
-            RefreshBeltSlot(_slot, uiMappings.buildArmbandSlot, uiMappings.buildBeltSlot);
+            IsScav = true;
+            return;
         }
 
-        // Sets the armband and belt slots when the time has come screen is opened
-        public void SetDeployArmbandSlot()
-        {
-            // Test if the player is a scav, if so, return
-            if (isSavage)
-            {
-                return;
-            }
-            Slot _slot = UiMappings.getDeployPanel_Mappings();
-            if (_slot == null)
-            {
-                isSavage = true;
-                return;
-            }
-            if(!TestSlotHasItem(_slot))
-            {
-                return;
-            }
-            // Add check for scav
-            RefreshBeltSlot(_slot, uiMappings.deployArmbandSlot, uiMappings.deployBeltSlot);
-        }
-        #endregion
+        PlayerArmbandSlot = slot;
+        RefreshAndTrack(slot, UiMappings.armBandSlot, UiMappings.beltSlot, ref _playerArmbandItemId);
+    }
 
-        // Refreshes the armband and belt slots
-        private void RefreshBeltSlot(Slot _slot, GameObject targetArm, GameObject targetBelt)
+    public void SetLootArmbandSlotOnOpen()
+    {
+        if (!IsInventoryScreenOpen() || !ComplexStashPanelLoaded)
         {
-            if (TestItemIsCompound(_slot))
+            return;
+        }
+
+        var slot = UiMappings.getComplexLootUI_Mappings();
+        if (slot == null)
+        {
+            ComplexStashPanelLoaded = false;
+            return;
+        }
+
+        LootArmbandSlot = slot;
+        RefreshAndTrack(slot, UiMappings.lootArmBand, UiMappings.lootBeltSlot, ref _lootArmbandItemId);
+    }
+
+    public void SetInsuranceArmbandSlot()
+    {
+        RefreshStaticScreen(
+            UiMappings.getInsuranceScreen_Mappings(),
+            UiMappings.insuranceArmBand,
+            UiMappings.insuranceBelt);
+    }
+
+    public void SetBuildsArmbandSlot()
+    {
+        RefreshStaticScreen(
+            UiMappings.getBuildPanel_Mappings(),
+            UiMappings.buildArmbandSlot,
+            UiMappings.buildBeltSlot);
+    }
+
+    public void SetDeployArmbandSlot()
+    {
+        if (IsScav)
+        {
+            return;
+        }
+
+        var slot = UiMappings.getDeployPanel_Mappings();
+        if (slot == null)
+        {
+            IsScav = true;
+            return;
+        }
+
+        RefreshStaticScreen(slot, UiMappings.deployArmbandSlot, UiMappings.deployBeltSlot);
+    }
+
+    private void RefreshStaticScreen(Slot? slot, GameObject armbandUi, GameObject beltUi)
+    {
+        if (!TryGetContainedItem(slot, out _))
+        {
+            return;
+        }
+
+        RefreshBeltSlot(slot!, armbandUi, beltUi);
+    }
+
+    private void RefreshAndTrack(
+        Slot slot,
+        GameObject armbandUi,
+        GameObject beltUi,
+        ref string? trackedItemId)
+    {
+        if (!TryGetContainedItem(slot, out var item))
+        {
+            trackedItemId = null;
+            RefreshEmptySlot(armbandUi, beltUi);
+            return;
+        }
+
+        RefreshBeltSlot(slot, armbandUi, beltUi);
+        trackedItemId = item.Id;
+    }
+
+    private void RefreshIfChanged(
+        Slot slot,
+        GameObject armbandUi,
+        GameObject beltUi,
+        ref string? trackedItemId)
+    {
+        if (!TryGetContainedItem(slot, out var item))
+        {
+            if (trackedItemId != null)
             {
-                 UiMappings.toggleArmBandSlotFull(iconToggle, targetArm);
-                 UiMappings.toggleBeltSlotFull(!iconToggle, targetBelt);
+                trackedItemId = null;
+                DebugLog("Armband slot was emptied.");
             }
-            else
-            {
-                 UiMappings.toggleArmBandSlotFull(!iconToggle, targetArm);
-                 UiMappings.toggleBeltSlotFull(iconToggle, targetBelt);
-            }
+
+            RefreshEmptySlot(armbandUi, beltUi);
+            return;
+        }
+
+        // Reapply every ItemView.Update in case EFT rebuilds/resets the SlotView state.
+        RefreshBeltSlot(slot, armbandUi, beltUi);
+
+        if (trackedItemId == item.Id)
+        {
+            return;
+        }
+
+        trackedItemId = item.Id;
+        DebugLog($"Armband item changed: {item.Id}; IsContainer={item.IsContainer}");
+    }
+
+    private void RefreshBeltSlot(Slot slot, GameObject targetArmband, GameObject targetBelt)
+    {
+        var item = slot.ContainedItem;
+        var isBelt = item != null && item.IsContainer;
+
+        // true = empty/hidden-item visual
+        // false = full/shown-item visual
+
+        if (isBelt)
+        {
+            // Container in armband slot: display it as the belt.
+            UiMappings.toggleArmBandSlotFull(showEmptyState: true, targetArmband);
+            UiMappings.toggleBeltSlotFull(showEmptyState: false, targetBelt);
+            return;
+        }
+
+        // Normal non-container armband: display it as the armband.
+        UiMappings.toggleArmBandSlotFull(showEmptyState: false, targetArmband);
+        UiMappings.toggleBeltSlotFull(showEmptyState: true, targetBelt);
+    }
+    private void RefreshEmptySlot(GameObject targetArmband, GameObject targetBelt)
+    {
+        // No item in either representation.
+        UiMappings.toggleArmBandSlotFull(showEmptyState: true, targetArmband);
+        UiMappings.toggleBeltSlotFull(showEmptyState: true, targetBelt);
+    }
+    private bool IsGameReady()
+    {
+        return Singleton<CommonUI>.Instantiated
+            && Singleton<PreloaderUI>.Instantiated
+            && InventoryScreenLoaded;
+    }
+
+    private static bool IsInventoryScreenOpen()
+    {
+        return Singleton<CommonUI>.Instantiated
+            && Singleton<CommonUI>.Instance.InventoryScreen.isActiveAndEnabled;
+    }
+
+    private static bool IsScavengerTransferScreenOpen()
+    {
+        if (!Singleton<CommonUI>.Instantiated)
+        {
+            return false;
+        }
+
+        var screen = Singleton<CommonUI>.Instance.ScavengerInventoryScreen;
+        return screen.isActiveAndEnabled
+            && UnityEngine.SceneManagement.SceneManager.GetActiveScene().name == "EmptyScene"
+            && EftScreenManager.Instance.CurrentScreenController.ScreenType == EEftScreenType.ScavInventory;
+    }
+
+    private static bool TryGetContainedItem(Slot? slot, out Item item)
+    {
+        item = null!;
+
+        if (slot == null || slot.Items.IsNullOrEmpty() || slot.ContainedItem == null)
+        {
+            return false;
+        }
+
+        item = slot.ContainedItem;
+        return true;
+    }
+
+    private void DebugLog(string message)
+    {
+        if (EnableLogging)
+        {
+            Log.LogInfo(message);
         }
     }
 }

@@ -1,3 +1,4 @@
+using EFT;
 using EFT.InventoryLogic;
 using PackNStrap.Core.Templates;
 using System.Collections.Generic;
@@ -6,7 +7,7 @@ namespace PackNStrap.Core.Items;
 
 [CustomParent("680fd1dae5044e670a092e16", typeof(CustomContainerItemClass), typeof(CustomContainerTemplateClass))]
 
-public class CustomContainerItemClass : SearchableItemItemClass
+public class CustomContainerItemClass : SearchableItem
 {
 	public CustomContainerItemClass(string id, CustomContainerTemplateClass template)
 		: base(id, template)
@@ -38,6 +39,6 @@ public class CustomContainerItemClass : SearchableItemItemClass
 			}
 		}
 	}
-	[GAttribute26]
+	[ComponentAttribute]
 	public readonly TagComponent Tag;
 }

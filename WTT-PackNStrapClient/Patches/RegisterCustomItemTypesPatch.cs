@@ -2,6 +2,7 @@ using HarmonyLib;
 using SPT.Reflection.Patching;
 using System.Reflection;
 using PackNStrap.Core.Items;
+using EFT.InventoryLogic;
 
 namespace PackNStrap.Patches
 {
@@ -9,7 +10,7 @@ namespace PackNStrap.Patches
     {
         protected override MethodBase GetTargetMethod()
         {
-            return AccessTools.Method(typeof(GClass3381), nameof(GClass3381.Init));
+            return AccessTools.Method(typeof(ItemSorter), nameof(ItemSorter.Init));
         }
 
         [PatchPostfix]
@@ -20,19 +21,19 @@ namespace PackNStrap.Patches
 
         private static void RegisterCustomTypes()
         {
-            if (!GClass3381.List_0.Contains(typeof(CustomContainerItemClass)))
+            if (!ItemSorter._itemSuccessors.Contains(typeof(CustomContainerItemClass)))
             {
-                GClass3381.List_0.Add(typeof(CustomContainerItemClass));
+                ItemSorter._itemSuccessors.Add(typeof(CustomContainerItemClass));
             }
 
-            if (!GClass3381.List_0.Contains(typeof(CustomSecureContainerClass)))
+            if (!ItemSorter._itemSuccessors.Contains(typeof(CustomSecureContainerClass)))
             {
-                GClass3381.List_0.Add(typeof(CustomSecureContainerClass));
+                ItemSorter._itemSuccessors.Add(typeof(CustomSecureContainerClass));
             }
 
-            if (!GClass3381.List_0.Contains(typeof(CustomBeltItemClass)))
+            if (!ItemSorter._itemSuccessors.Contains(typeof(CustomBeltItemClass)))
             {
-                GClass3381.List_0.Add(typeof(CustomBeltItemClass));
+                ItemSorter._itemSuccessors.Add(typeof(CustomBeltItemClass));
             }
         }
     }

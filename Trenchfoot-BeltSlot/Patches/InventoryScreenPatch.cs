@@ -11,7 +11,7 @@ namespace BeltSlot.Patches
         {
             // one way methods can be patched is by targeting both their class name and the name of the method itself
             // the example in this patch is the Jump() method in the Player class
-            return AccessTools.Method(typeof(InventoryScreen), nameof(InventoryScreen.method_4));
+            return AccessTools.Method(typeof(InventoryScreen), nameof(InventoryScreen.ShowWithTab));
         }
 
         [PatchPostfix]
@@ -20,8 +20,8 @@ namespace BeltSlot.Patches
             if (Plugin.Instance == null) 
                 return;
 
-            Plugin.Instance.inventoryScreen = __instance;
-            Plugin.Instance.inventoryScreenLoaded = true;
+            Plugin.Instance.InventoryScreen = __instance;
+            Plugin.Instance.InventoryScreenLoaded = true;
         }
     }
 }

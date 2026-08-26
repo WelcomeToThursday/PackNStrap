@@ -18,7 +18,7 @@ namespace BeltSlot.Patches
         {
             if(Plugin.Instance != null)
             {
-                Plugin.Instance.inventoryEquipment = __instance;
+                Plugin.Instance.InventoryEquipment = __instance;
             }
             return true;
         }

@@ -118,7 +118,7 @@ namespace BeltSlot.Helpers
             containerGameObject = inventoryScreen.transform.Find("Items Panel/LeftSide/Containers Panel/Scrollview Parent/Containers Scrollview/Content").gameObject;
             if(countTransformChildren(containerGameObject) < 8)
             {
-                Plugin.Instance.isSavage = true;
+                Plugin.Instance.IsScav = true;
                 return null;
             }
             equipmentGameObject = inventoryScreen.transform.Find("Items Panel/LeftSide/Left Panel/Gear Panel").gameObject;
@@ -140,7 +140,7 @@ namespace BeltSlot.Helpers
             lootContainerGameObject = inventoryScreen.transform.Find("Items Panel/Stash Panel/Complex Loot Panel/Containers Scrollview/Content").gameObject;
             if(countTransformChildren(lootContainerGameObject) < 5)
             {
-                Plugin.Instance.complexStashPanelLoaded = false;
+                Plugin.Instance.ComplexStashPanelLoaded = false;
                 return null;
             }
             lootEquipmentGameObject = lootContainerGameObject.transform.Find("Gear Panel Template(Clone)").gameObject;
@@ -162,7 +162,7 @@ namespace BeltSlot.Helpers
             scavInventoryContainer = scavInventoryScreen.transform.Find("Items Panel/Containers Panel/Scrollview Parent/Containers Scrollview/Content").gameObject;
             if (countTransformChildren(scavInventoryContainer) < 8)
             {
-                Plugin.Instance.isSavage = true;
+                Plugin.Instance.IsScav = true;
                 return null;
             }
             scavArmBandSlot = scavInventoryScreen.transform.Find("Items Panel/Left Panel/Gear Panel/ArmBand Slot").gameObject;
@@ -179,7 +179,7 @@ namespace BeltSlot.Helpers
         {
             if (target == null)
             {
-                if(Plugin.Instance.enableLogging)
+                if(Plugin.Instance.EnableLogging)
                 {
                     Plugin.Instance.Log.LogError("[Belt Slots] Target GameObject is null.");
                 }
@@ -192,7 +192,7 @@ namespace BeltSlot.Helpers
         // Set the settings of the belt slot, such as its position, name, and visibility
         public void setBeltSlot_Settings(GameObject targetBelt)
         {
-            if(Plugin.Instance.enableLogging)
+            if(Plugin.Instance.EnableLogging)
             {
                 Plugin.Instance.Log.LogInfo($"[Belt Slots] setBeltSlot_Settings called for {targetBelt.name}");
             }
@@ -212,7 +212,7 @@ namespace BeltSlot.Helpers
             }
         }
 
-        public void toggleBeltSlotFull(bool full, GameObject target)
+        public void toggleBeltSlotFull(bool showEmptyState, GameObject target)
         {
             GameObject _slotPanel = target.transform.GetChild(1).gameObject; // Slot panel of the belt slot
             if(_slotPanel.transform.childCount >5)
@@ -223,15 +223,15 @@ namespace BeltSlot.Helpers
                 GameObject _fullBorder = _slotPanel.transform.GetChild(3).gameObject; // Full border of the belt slot
                 GameObject _slotLayout = _slotPanel.transform.GetChild(4).gameObject; // Slot layout of the belt slot
                     
-                _backImage.SetActive(full); // Show the back image
-                _backGround.SetActive(full); // Show the background
-                _emptyBorder.SetActive(full); // Show the empty border
-                _fullBorder.SetActive(!full); // Hide the full border
-                _slotLayout.SetActive(!full); // Hide the slot layout
+                _backImage.SetActive(showEmptyState); // Show the back image
+                _backGround.SetActive(showEmptyState); // Show the background
+                _emptyBorder.SetActive(showEmptyState); // Show the empty border
+                _fullBorder.SetActive(!showEmptyState); // Hide the full border
+                _slotLayout.SetActive(!showEmptyState); // Hide the slot layout
             }    
         }
 
-        public void toggleArmBandSlotFull(bool full, GameObject target)
+        public void toggleArmBandSlotFull(bool showEmptyState, GameObject target)
         {
             GameObject _slotPanel = target.transform.GetChild(1).gameObject; // Slot panel of the armband slot
             if (target.transform.childCount > 8)
@@ -242,11 +242,11 @@ namespace BeltSlot.Helpers
                 GameObject _fullBorder = target.transform.GetChild(7).gameObject; // Full border of the armband slot
                 GameObject _slotLayout = target.transform.GetChild(8).gameObject; // Slot layout of the armband slot
                     
-                _backImage.SetActive(full); // Show the back image
-                _backGround.SetActive(full); // Show the background
-                _emptyBorder.SetActive(full); // Show the empty border
-                _fullBorder.SetActive(!full); // Hide the full border
-                _slotLayout.SetActive(!full); // Hide the slot layout
+                _backImage.SetActive(showEmptyState); // Show the back image
+                _backGround.SetActive(showEmptyState); // Show the background
+                _emptyBorder.SetActive(showEmptyState); // Show the empty border
+                _fullBorder.SetActive(!showEmptyState); // Hide the full border
+                _slotLayout.SetActive(!showEmptyState); // Hide the slot layout
             }
         }
         #endregion

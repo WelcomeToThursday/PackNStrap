@@ -5,6 +5,7 @@ using SPTarkov.Server.Core.Models.Eft.Common;
 using SPTarkov.Server.Core.Models.Eft.Common.Tables;
 using SPTarkov.Server.Core.Models.Eft.Match;
 using SPTarkov.Server.Core.Services;
+using SPTarkov.Server.Core.Services.InRaid;
 
 namespace WTTPackNStrap.Patches;
 
