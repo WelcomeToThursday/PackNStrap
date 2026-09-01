@@ -51,6 +51,10 @@
     </ItemGroup>
 
     <ItemGroup>
+      <ProjectReference Include="..\WTT-PackNStrapClient\WTT-PackNStrapClient.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
         <Reference Include="0Harmony">
             <HintPath>..\..\..\BepInEx\core\0Harmony.dll</HintPath>
         </Reference>
@@ -96,9 +100,6 @@
         <Reference Include="UnityEngine.CoreModule">
             <HintPath>..\..\..\EscapeFromTarkov_Data\Managed\UnityEngine.CoreModule.dll</HintPath>
         </Reference>
-        <Reference Include="WTT-PackNStrap">
-          <HintPath>..\Build\BepInEx\plugins\WTT-PackNStrap\WTT-PackNStrap.dll</HintPath>
-        </Reference>
     </ItemGroup>
 
     <ItemGroup>
@@ -117,7 +118,7 @@
     </ItemGroup>
 
     <Target Name="PostBuild" AfterTargets="PostBuildEvent">
-      <Exec Command="@echo off&#xA;setlocal enabledelayedexpansion&#xA;&#xA;REM Set variables&#xA;set MODNAME=WTT-PackNStrap&#xA;set DLLPATH=$(TargetDir)$(TargetName).dll&#xA;set OUTDIR=..\..\..\BepInEx\plugins\%MODNAME%&#xA;set BUILDOUTDIR=..\Build\BepInEx\plugins\%MODNAME%&#xA;&#xA;REM Create output directories if they don't exist&#xA;if not exist &quot;%OUTDIR%&quot; mkdir &quot;%OUTDIR%&quot;&#xA;if not exist &quot;%BUILDOUTDIR%&quot; mkdir &quot;%BUILDOUTDIR%&quot;&#xA;&#xA;REM Copy the DLL to BepInEx plugins directory&#xA;copy /Y &quot;%DLLPATH%&quot; &quot;%OUTDIR%\&quot; &gt;nul 2&gt;&amp;1&#xA;echo [PostBuild] Copied %MODNAME%.dll to %OUTDIR%&#xA;&#xA;REM Copy the DLL to Build/BepInEx plugins directory&#xA;copy /Y &quot;%DLLPATH%&quot; &quot;%BUILDOUTDIR%\&quot; &gt;nul 2&gt;&amp;1&#xA;echo [PostBuild] Copied %MODNAME%.dll to %BUILDOUTDIR%&#xA;&#xA;echo [PostBuild] BepInEx build output: %OUTDIR% and %BUILDOUTDIR%&#xA;endlocal&#xA;" />
+      <Exec Command="@echo off&#xA;setlocal enabledelayedexpansion&#xA;&#xA;REM Set variables&#xA;set MODNAME=WTT-PackNStrapClient&#xA;set DLLPATH=$(TargetDir)$(TargetName).dll&#xA;set OUTDIR=..\..\..\BepInEx\plugins\%MODNAME%&#xA;set BUILDOUTDIR=..\Build\BepInEx\plugins\%MODNAME%&#xA;&#xA;REM Create output directories if they don't exist&#xA;if not exist &quot;%OUTDIR%&quot; mkdir &quot;%OUTDIR%&quot;&#xA;if not exist &quot;%BUILDOUTDIR%&quot; mkdir &quot;%BUILDOUTDIR%&quot;&#xA;&#xA;REM Copy the DLL to BepInEx plugins directory&#xA;copy /Y &quot;%DLLPATH%&quot; &quot;%OUTDIR%\&quot; &gt;nul 2&gt;&amp;1&#xA;echo [PostBuild] Copied %MODNAME%.dll to %OUTDIR%&#xA;&#xA;REM Copy the DLL to Build/BepInEx plugins directory&#xA;copy /Y &quot;%DLLPATH%&quot; &quot;%BUILDOUTDIR%\&quot; &gt;nul 2&gt;&amp;1&#xA;echo [PostBuild] Copied %MODNAME%.dll to %BUILDOUTDIR%&#xA;&#xA;echo [PostBuild] BepInEx build output: %OUTDIR% and %BUILDOUTDIR%&#xA;endlocal&#xA;" />
     </Target>
 
 </Project>

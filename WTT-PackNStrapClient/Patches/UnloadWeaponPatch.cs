@@ -65,7 +65,7 @@ internal class UnloadWeaponPatch : ModulePatch
                 {
                     var inventoryEquipment = (InventoryEquipment)
                         AccessTools.Field(typeof(ItemUiContext),
-                                "inventoryEquipment_0")
+                                "_equipment")
                             .GetValue(__instance);
                     bool flag;
                     if (!(flag = inventoryEquipment.Contains(currentMagazine)) && _rightPanelItem == null)
