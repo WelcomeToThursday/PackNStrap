@@ -1,5 +1,6 @@
 #if !UNITY_EDITOR
 using BepInEx;
+using BepInEx.Bootstrap;
 using Comfort.Common;
 using EFT;
 using EFT.InventoryLogic;
@@ -77,17 +78,6 @@ namespace PackNStrap
             Instance = this;
 
 
-            #region Proper Belt Fast Access
-            FastAccessSlots = FastAccessSlots ?? typeof(Inventory).GetField("FastAccessSlots");
-            FastAccessSlots?.SetValue(FastAccessSlots, NewFastAccessSlots);
-
-            BindAvailableSlots = BindAvailableSlots ?? typeof(Inventory).GetField("BindAvailableSlotsExtended");
-            BindAvailableSlots?.SetValue(BindAvailableSlots, NewBindAvailableSlots);
-
-            _traderServicesEligibleSlots = _traderServicesEligibleSlots ?? typeof(InventoryEquipment).GetField("TraderServicesEligibleSlots");
-            _traderServicesEligibleSlots?.SetValue(_traderServicesEligibleSlots, NewTraderServicesEligibleSlots);
-
-            #endregion
 
 
             new GetPrioritizedGridsForUnloadedObjectPatch().Enable();
@@ -95,12 +85,29 @@ namespace PackNStrap
             new UnloadWeaponPatch().Enable();
             new FindSlotForPickupPatch().Enable();
             new RegisterCustomItemTypesPatch().Enable();
-            new ContainerSlotsPatch().Enable();
-            new PaymentSlotsPatch().Enable();
-            new GrenadeThrowingSlotsPatch().Enable();
-            new IsAtBindablePlacePatch().Enable();
-            new IsAtReachablePlacePatch().Enable();
-            new GetThrowablePriorityGrenadesListPatch().Enable();
+
+            var useItemsInstalled = Chainloader.PluginInfos.ContainsKey("com.cj.useFromAnywhere");
+
+            if (!useItemsInstalled)
+            {
+
+                #region Proper Belt Fast Access
+                FastAccessSlots = FastAccessSlots ?? typeof(Inventory).GetField("FastAccessSlots");
+                FastAccessSlots?.SetValue(FastAccessSlots, NewFastAccessSlots);
+
+                BindAvailableSlots = BindAvailableSlots ?? typeof(Inventory).GetField("BindAvailableSlotsExtended");
+                BindAvailableSlots?.SetValue(BindAvailableSlots, NewBindAvailableSlots);
+
+                _traderServicesEligibleSlots = _traderServicesEligibleSlots ?? typeof(InventoryEquipment).GetField("TraderServicesEligibleSlots");
+                _traderServicesEligibleSlots?.SetValue(_traderServicesEligibleSlots, NewTraderServicesEligibleSlots);
+                #endregion
+                new ContainerSlotsPatch().Enable();
+                new PaymentSlotsPatch().Enable();
+                new GrenadeThrowingSlotsPatch().Enable();
+                new IsAtBindablePlacePatch().Enable();
+                new IsAtReachablePlacePatch().Enable();
+                new GetThrowablePriorityGrenadesListPatch().Enable();
+            }
         }
 
         internal void Update()
